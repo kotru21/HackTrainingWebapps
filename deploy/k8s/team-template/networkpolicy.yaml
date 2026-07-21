@@ -85,6 +85,27 @@ spec:
         - protocol: TCP
           port: 3011
 ---
+# Platform flag-planter → team postgres (plants flags directly into the stand DB).
+# WITHOUT this, planting silently fails in-cluster (default-deny blocks platform→pg:5432).
+# Attackers never get this path — only the platform namespace is allowed here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-platform-to-postgres
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: platform
+      ports:
+        - protocol: TCP
+          port: 5432
+---
 # Attacking team → app HTTP ONLY (never postgres / code-server)
 # Overlay patches matchLabels.team to the attacker team id (a|b).
 apiVersion: networking.k8s.io/v1

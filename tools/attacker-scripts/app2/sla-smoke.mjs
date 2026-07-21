@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 /** SLA smoke: register → create invoice → pay → receipt (both variants must pass) */
+process.on('unhandledRejection', (e) => {
+  console.error('FAIL:', e instanceof Error ? e.message : e);
+  process.exit(1);
+});
+
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;

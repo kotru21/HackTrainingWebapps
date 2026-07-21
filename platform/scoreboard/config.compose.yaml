@@ -27,6 +27,16 @@ flag_values:
 
 stands:
   - team: a
+    service: app1-helpdesk
+    base_url: http://app1-helpdesk-vuln:3000
+    database_url: postgres://helpdesk:helpdesk@helpdesk-pg:5432/helpdesk_vuln
+    kind: helpdesk
+  - team: b
+    service: app1-helpdesk
+    base_url: http://app1-helpdesk-ref:3000
+    database_url: postgres://helpdesk:helpdesk@helpdesk-pg:5432/helpdesk_ref
+    kind: helpdesk
+  - team: a
     service: app2-billing
     base_url: http://app2-billing-vuln:3011
     database_url: postgres://billing:billing@billing-pg:5432/billing_vuln

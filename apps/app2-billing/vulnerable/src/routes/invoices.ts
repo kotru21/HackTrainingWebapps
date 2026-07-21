@@ -52,8 +52,10 @@ export function invoiceRoutes(config: AppConfig): Router {
       return;
     }
     const ownerId = Number(invoice.owner_id);
+    // Vulnerable: always allows. Cross-owner reads are detectable in forensics
+    // via meta.resourceOwner !== requester (docs/forensics.md V2.1).
     logEvent(req.ctx.logger, {
-      event: ownerId === req.user!.id ? 'authz.allow' : 'authz.allow',
+      event: 'authz.allow',
       reqId: req.ctx.reqId,
       route: 'GET /api/invoices/:id',
       userId: req.user!.id,

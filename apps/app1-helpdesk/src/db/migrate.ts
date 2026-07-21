@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Logger } from '@hacktraining/shared';
+import { generateFlag, type Logger } from '@hacktraining/shared';
 import type { AppConfig } from '../config';
 import { query } from '../db';
 import { ensureSeedUsers } from '../services/users';
@@ -51,30 +51,30 @@ CREATE TABLE IF NOT EXISTS security_audit (
 );
 `;
 
-/** Training flag for forged-JWT / default-admin path (V1.1 / V1.5). */
-const ADMIN_SECRET_FLAG = 'TRN{a1b2c3d4e5f60718293a4b5c6d7e8f90}';
-
 export async function migrateAndSeed(config: AppConfig, logger: Logger): Promise<void> {
   await query(SCHEMA_SQL);
   await ensureSeedUsers(config.seedAdminPassword);
 
+  // Seed rotating training flags. The flag-planter overwrites these each tick during
+  // a scored round; the app is the source of truth for both delivery channels:
+  //   round_flag -> admin_secrets, read via forged-admin JWT (CFG-JWT)
+  //   rce_flag   -> mirrored to FLAG_FILE_PATH, read via the ejs RCE (CFG-RCE)
+  const jwtFlag = generateFlag();
+  const rceFlag = generateFlag();
   await query(
     `INSERT INTO admin_secrets (name, value)
-     VALUES ('round_flag', $1)
+     VALUES ('round_flag', $1), ('rce_flag', $2)
      ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value`,
-    [ADMIN_SECRET_FLAG],
+    [jwtFlag, rceFlag],
   );
 
-  // Ensure RCE target file exists for local/dev (planter replaces in real rounds)
+  // Initial mirror of the RCE flag to the file the payload reads. The flag-mirror
+  // loop (see startFlagMirror) keeps it in sync as the planter rotates rce_flag.
   try {
-    const flagDir = path.dirname(config.flagFilePath);
-    fs.mkdirSync(flagDir, { recursive: true });
-    if (!fs.existsSync(config.flagFilePath)) {
-      const rceFlag = 'TRN{c0ffee1234567890abcdef1234567890}';
-      fs.writeFileSync(config.flagFilePath, rceFlag, 'utf8');
-    }
+    fs.mkdirSync(path.dirname(config.flagFilePath), { recursive: true });
+    fs.writeFileSync(config.flagFilePath, `${rceFlag}\n`, 'utf8');
   } catch (err) {
-    logger.warn({ err }, 'could not ensure flag file (ok if read-only root)');
+    logger.warn({ err }, 'could not seed flag file (ok if read-only root)');
   }
 
   logger.info({ event: 'bootstrap' }, 'schema migrated and seed applied');

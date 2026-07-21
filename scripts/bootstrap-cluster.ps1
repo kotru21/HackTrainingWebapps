@@ -2,6 +2,7 @@
 # k3s on bare metal/WSL is preferred for production training VMs; this path validates manifests.
 param(
   [string]$ClusterName = "hacktraining",
+  [ValidateSet('app1', 'app2')][string]$App = 'app2',
   [switch]$SkipCreate
 )
 
@@ -60,6 +61,7 @@ kubectl -n ingress-nginx wait --for=condition=available deploy/ingress-nginx-con
 
 Write-Host "==> Optional: load local images (build first with docker compose build)"
 $images = @(
+  "hacktraining/app1-helpdesk-vulnerable:local",
   "hacktraining/app2-billing-vulnerable:local",
   "hacktraining/scoreboard:local",
   "hacktraining/flag-planter:local",
@@ -82,8 +84,17 @@ kubectl apply -f (Join-Path $K8s "overlays\round-roles.yaml")
 kubectl apply -k (Join-Path $K8s "platform")
 # Patch scoreboard-pg storage for kind
 kubectl -n platform patch statefulset scoreboard-pg --type json -p "[{\"op\":\"replace\",\"path\":\"/spec/volumeClaimTemplates/0/spec/storageClassName\",\"value\":\"standard\"}]" 2>$null
-kubectl apply -k (Join-Path $K8s "overlays\team-a")
-kubectl apply -k (Join-Path $K8s "overlays\team-b")
+
+Write-Host "==> Apply team overlays ($App)"
+if ($App -eq 'app1') {
+  kubectl apply -f (Join-Path $K8s "platform\scoreboard-config-app1.yaml")
+  kubectl -n platform rollout restart deploy/flag-planter deploy/checker 2>$null
+  kubectl apply -k (Join-Path $K8s "overlays\app1\team-a")
+  kubectl apply -k (Join-Path $K8s "overlays\app1\team-b")
+} else {
+  kubectl apply -k (Join-Path $K8s "overlays\team-a")
+  kubectl apply -k (Join-Path $K8s "overlays\team-b")
+}
 kubectl get pvc -A | ForEach-Object { $_ }
 
 Write-Host @"

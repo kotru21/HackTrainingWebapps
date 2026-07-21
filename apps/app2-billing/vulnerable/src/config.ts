@@ -13,10 +13,13 @@ export interface AppConfig {
   sharedPublicDir: string;
 }
 
+/** Training-weak secrets that must not survive into a production run. */
+const WEAK_SECRETS = new Set(['', 'change-me', 'secret', 'billing-secret', 'billing-secret-ref']);
+
 export function loadConfig(): AppConfig {
   const root = path.join(__dirname, '..');
   const sharedRoot = path.join(root, '..', 'shared');
-  return {
+  const cfg: AppConfig = {
     port: Number(process.env.PORT ?? '3011'),
     team: process.env.TEAM ?? 'dev',
     nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -30,4 +33,9 @@ export function loadConfig(): AppConfig {
     publicDir: path.join(root, 'public'),
     sharedPublicDir: path.join(sharedRoot, 'public'),
   };
+  // Fail-closed: never boot production on a fallback/weak JWT secret.
+  if (cfg.nodeEnv === 'production' && WEAK_SECRETS.has(cfg.jwtSecret)) {
+    throw new Error('Refusing to start in production with a weak/empty JWT_SECRET.');
+  }
+  return cfg;
 }

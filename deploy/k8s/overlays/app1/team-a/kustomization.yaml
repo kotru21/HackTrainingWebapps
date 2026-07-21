@@ -1,0 +1,94 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# app1 «Helpdesk» stand for team-a (round-1 warm-up). Same team-template as app2,
+# but swaps the image and overlays app1 (helpdesk) env onto the shared ConfigMap/Secret.
+namespace: team-a
+resources:
+  - ../../../team-template
+images:
+  - name: hacktraining/app2-billing-vulnerable
+    newName: hacktraining/app1-helpdesk-vulnerable
+    newTag: local
+patches:
+  # --- app1 environment (helpdesk) ---
+  - target:
+      kind: ConfigMap
+      name: stand-app-config
+    patch: |-
+      - op: replace
+        path: /data/JWT_COOKIE_NAME
+        value: hd_token
+      - op: add
+        path: /data/SERVE_STATIC_ROOT
+        value: "."
+      - op: add
+        path: /data/FLAG_FILE_PATH
+        value: /flags/app1.flag
+      - op: add
+        path: /data/SEED_ADMIN_PASSWORD
+        value: admin123
+      - op: add
+        path: /data/DEBUG_CANARY_FLAG
+        value: TRN{deb06111111111111111111111111111}
+  - target:
+      kind: Secret
+      name: stand-app-secret
+    patch: |-
+      - op: replace
+        path: /stringData/JWT_SECRET
+        value: secret
+      - op: replace
+        path: /stringData/DATABASE_URL
+        value: postgres://helpdesk:helpdesk@postgres:5432/helpdesk
+      - op: replace
+        path: /stringData/POSTGRES_USER
+        value: helpdesk
+      - op: replace
+        path: /stringData/POSTGRES_PASSWORD
+        value: helpdesk
+      - op: replace
+        path: /stringData/POSTGRES_DB
+        value: helpdesk
+  - target:
+      kind: StatefulSet
+      name: postgres
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/exec/command
+        value: ["pg_isready", "-U", "helpdesk"]
+  # --- team-a round direction (opponent = b) ---
+  - target:
+      kind: NetworkPolicy
+      name: allow-attacker-to-app-http
+    patch: |-
+      - op: replace
+        path: /spec/ingress/0/from/0/namespaceSelector/matchLabels/team
+        value: b
+  - target:
+      kind: NetworkPolicy
+      name: allow-egress-to-opponent-app
+    patch: |-
+      - op: replace
+        path: /spec/egress/0/to/0/namespaceSelector/matchLabels/team
+        value: b
+  - target:
+      kind: Ingress
+      name: stand
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: team-a.app.hack.local
+      - op: replace
+        path: /spec/rules/1/host
+        value: team-a.ide.hack.local
+  - target:
+      kind: Deployment
+      name: app
+    patch: |-
+      - op: add
+        path: /spec/template/metadata/labels/team
+        value: a
+labels:
+  - pairs:
+      team: a
+    includeSelectors: false

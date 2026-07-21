@@ -6,7 +6,9 @@ resources:
   - ../../platform
   - ../team-a
   - ../team-b
-  - ../round-roles.yaml
+# round-roles.yaml is applied separately by bootstrap-cluster (kustomize forbids
+# referencing a bare file above the kustomization root):
+#   kubectl apply -f deploy/k8s/overlays/round-roles.yaml
 patches:
   - target:
       kind: PersistentVolumeClaim

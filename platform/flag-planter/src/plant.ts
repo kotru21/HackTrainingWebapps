@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { Pool } from 'pg';
 import { generateFlag, createLogger } from '@hacktraining/shared';
 import type { PlanterConfig, StandConfig } from './config';
@@ -112,11 +110,16 @@ async function plantHelpdeskStand(
   if (!stand.database_url) return;
   const pool = new Pool({ connectionString: stand.database_url });
   try {
+    // Both helpdesk flags are delivered through the stand's own DB (the planter has no
+    // filesystem access to the app pod across namespaces). CFG-JWT is read from
+    // admin_secrets directly; CFG-RCE is mirrored to FLAG_FILE_PATH by the app's
+    // flag-mirror loop and read via the ejs RCE.
     const jwtFlag = generateFlag();
+    const rceFlag = generateFlag();
     await pool.query(
-      `INSERT INTO admin_secrets (name, value) VALUES ('round_flag', $1)
+      `INSERT INTO admin_secrets (name, value) VALUES ('round_flag', $1), ('rce_flag', $2)
        ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value`,
-      [jwtFlag],
+      [jwtFlag, rceFlag],
     );
     await registerPlant(cfg, {
       flag: jwtFlag,
@@ -126,11 +129,6 @@ async function plantHelpdeskStand(
       tick,
       expires_at: expiresAt,
     });
-
-    const rceFlag = generateFlag();
-    const flagPath = stand.flag_file_path ?? './flags/app1.flag';
-    fs.mkdirSync(path.dirname(path.resolve(flagPath)), { recursive: true });
-    fs.writeFileSync(flagPath, `${rceFlag}\n`, 'utf8');
     await registerPlant(cfg, {
       flag: rceFlag,
       team: stand.team,

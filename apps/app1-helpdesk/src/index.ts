@@ -6,6 +6,7 @@ import { createAppLogger } from './types';
 import { initDb } from './db';
 import { createApp } from './app';
 import { migrateAndSeed } from './db/migrate';
+import { startFlagMirror } from './flag-mirror';
 
 /** Load variant .env when HELPDESK_ENV_FILE is set (vulnerable|reference paths). */
 function loadEnvFile(): void {
@@ -27,6 +28,7 @@ async function main(): Promise<void> {
   initDb(config, logger);
 
   await migrateAndSeed(config, logger);
+  startFlagMirror(config, logger);
 
   const app = createApp(config, logger);
   app.listen(config.port, () => {

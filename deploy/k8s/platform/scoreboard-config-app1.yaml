@@ -1,0 +1,48 @@
+# Platform stand config for an APP1 (helpdesk) round.
+# Apply over the default scoreboard-config to point the planter/checker at app1 stands:
+#   kubectl apply -f deploy/k8s/platform/scoreboard-config-app1.yaml
+#   kubectl -n platform rollout restart deploy/flag-planter deploy/checker
+# (bootstrap-cluster.sh --app app1 does this automatically.)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scoreboard-config
+  namespace: platform
+data:
+  config.yaml: |
+    tick_seconds: 60
+    flag_ttl_ticks: 3
+    defense_weight: 500
+    first_blood_multiplier: 1.5
+    submit_rate_limit_per_min: 20
+    round_minutes: 90
+    flag_regex: 'TRN\{[0-9a-f]{32}\}'
+    # INTENTIONALLY WEAK — training only
+    team_tokens:
+      a: team-a-token
+      b: team-b-token
+    judge_token: judge-token
+    flag_values:
+      A01-IDOR: 100
+      A04-MASSASSIGN: 120
+      CFG-JWT: 300
+      CFG-RCE: 300
+      CFG-LEAK: 150
+      CFG-CREDS: 120
+      A02-CRYPTO: 150
+      A03-XSS: 150
+      A03-SQLI: 200
+      A10-SSRF: 200
+    stands:
+      - team: a
+        service: app1-helpdesk
+        base_url: http://app.team-a.svc.cluster.local
+        database_url: postgres://helpdesk:helpdesk@postgres.team-a.svc.cluster.local:5432/helpdesk
+        kind: helpdesk
+      - team: b
+        service: app1-helpdesk
+        base_url: http://app.team-b.svc.cluster.local
+        database_url: postgres://helpdesk:helpdesk@postgres.team-b.svc.cluster.local:5432/helpdesk
+        kind: helpdesk
+    metadata_url: http://internal-metadata.platform.svc.cluster.local:3099
+    metadata_plant_token: metadata-plant-token

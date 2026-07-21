@@ -34,9 +34,31 @@ export interface AppConfig {
   publicDir: string;
 }
 
+/** Known training-weak values that must never survive into a production run. */
+const WEAK_SECRETS = new Set(['', 'change-me', 'secret', 'billing-secret', 'password']);
+const WEAK_ADMIN_PW = new Set(['', 'change-me', 'admin', 'admin123', 'password']);
+
+/**
+ * Fail-closed guard: in production, refuse to boot on a fallback/weak secret so a
+ * misconfigured reference deploy cannot silently reintroduce V1.1/V1.5.
+ * Vulnerable stands run NODE_ENV=development, so this never blocks the training vulns.
+ */
+function assertProdSecrets(cfg: AppConfig): void {
+  if (cfg.nodeEnv !== 'production') return;
+  const problems: string[] = [];
+  if (WEAK_SECRETS.has(cfg.jwtSecret)) problems.push('JWT_SECRET is empty/weak');
+  if (WEAK_ADMIN_PW.has(cfg.seedAdminPassword)) problems.push('SEED_ADMIN_PASSWORD is empty/weak');
+  if (problems.length > 0) {
+    throw new Error(
+      `Refusing to start in production with insecure config: ${problems.join('; ')}. ` +
+        'Inject strong values via env/Secret.',
+    );
+  }
+}
+
 export function loadConfig(appRoot: string = path.join(__dirname, '..')): AppConfig {
   const securityHeadersRaw = envString('SECURITY_HEADERS', 'off').toLowerCase();
-  return {
+  const cfg: AppConfig = {
     port: Number(envString('PORT', '3000')),
     team: envString('TEAM', 'dev'),
     nodeEnv: envString('NODE_ENV', 'development'),
@@ -57,4 +79,6 @@ export function loadConfig(appRoot: string = path.join(__dirname, '..')): AppCon
     viewsDir: path.join(appRoot, 'views'),
     publicDir: path.join(appRoot, 'public'),
   };
+  assertProdSecrets(cfg);
+  return cfg;
 }

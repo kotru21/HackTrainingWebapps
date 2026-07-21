@@ -8,7 +8,21 @@ K8S="$ROOT/deploy/k8s"
 KUBECONFIG_OUT="${KUBECONFIG_OUT:-$ROOT/artifacts/kubeconfigs}"
 STORAGE_CLASS="${STORAGE_CLASS:-local-path}"
 
-echo "==> HackTraining bootstrap (storageClass=$STORAGE_CLASS)"
+# Which app to deploy to the team stands (round 1 = app1, round 2 = app2).
+APP="app2"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --app) APP="${2:-}"; shift 2 ;;
+    -h|--help) echo "Usage: $0 [--app app1|app2]"; exit 0 ;;
+    *) echo "Unknown arg: $1" >&2; exit 1 ;;
+  esac
+done
+if [[ ! "$APP" =~ ^(app1|app2)$ ]]; then
+  echo "ERROR: --app must be app1 or app2" >&2
+  exit 1
+fi
+
+echo "==> HackTraining bootstrap (app=$APP storageClass=$STORAGE_CLASS)"
 
 kubectl get ns >/dev/null
 
@@ -28,9 +42,21 @@ kubectl apply -f "$K8S/overlays/round-roles.yaml"
 echo "==> Apply platform (scoreboard, checker, planter, loki, grafana, metadata)"
 kubectl apply -k "$K8S/platform"
 
-echo "==> Apply team overlays"
-kubectl apply -k "$K8S/overlays/team-a"
-kubectl apply -k "$K8S/overlays/team-b"
+# Point the planter/checker at the chosen app's stands.
+if [[ "$APP" == "app1" ]]; then
+  echo "==> Select app1 (helpdesk) stand config"
+  kubectl apply -f "$K8S/platform/scoreboard-config-app1.yaml"
+  kubectl -n platform rollout restart deploy/flag-planter deploy/checker 2>/dev/null || true
+fi
+
+echo "==> Apply team overlays ($APP)"
+if [[ "$APP" == "app1" ]]; then
+  kubectl apply -k "$K8S/overlays/app1/team-a"
+  kubectl apply -k "$K8S/overlays/app1/team-b"
+else
+  kubectl apply -k "$K8S/overlays/team-a"
+  kubectl apply -k "$K8S/overlays/team-b"
+fi
 
 # Patch storage class if not local-path (e.g. kind)
 if [[ "$STORAGE_CLASS" != "local-path" ]]; then

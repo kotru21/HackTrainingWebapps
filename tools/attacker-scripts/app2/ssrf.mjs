@@ -2,6 +2,11 @@
 /** V2.6 SSRF — fetch internal-metadata flag via avatar URL */
 import { extractFlag } from '../../../packages/shared/dist/index.js';
 
+process.on('unhandledRejection', (e) => {
+  console.error('FAIL:', e instanceof Error ? e.message : e);
+  process.exit(1);
+});
+
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;

@@ -30,10 +30,14 @@
 # Локально (без k8s) — для разработки и проверки эксплойтов
 docker compose -f deploy/docker/compose.dev.yml up --build
 
-# На полигоне (k3s)
-./scripts/bootstrap-cluster.sh          # namespaces, платформа, логи, мониторинг
-./scripts/deploy-team.sh --team a --app app1   # развернуть стенд команде A
-./scripts/reset-round.sh  --team a --app app1  # сброс к базовому уязвимому состоянию + новые флаги
+# На полигоне (k3s) — раунд 1 на app1 «Helpdesk»
+./scripts/bootstrap-cluster.sh --app app1      # namespaces, платформа, логи, стенды app1
+./scripts/deploy-team.sh a app1                # (пере)развернуть стенд app1 команде A
+./scripts/reset-round.sh --team a --app app1   # сброс к уязвимому baseline + свежие флаги
+
+# Раунд 2 на app2 «Billing» (app2 — значение по умолчанию)
+./scripts/bootstrap-cluster.sh --app app2
+./scripts/deploy-team.sh a app2
 ```
 
 ## Документация
