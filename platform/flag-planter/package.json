@@ -1,0 +1,26 @@
+{
+  "name": "@hacktraining/flag-planter",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Plant TRN flags into stands each tick",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "once": "tsx src/index.ts --once"
+  },
+  "dependencies": {
+    "@hacktraining/shared": "0.0.1",
+    "dotenv": "^16.5.0",
+    "js-yaml": "^4.1.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.15.30",
+    "@types/pg": "^8.15.2",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

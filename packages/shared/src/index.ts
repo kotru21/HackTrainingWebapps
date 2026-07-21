@@ -10,6 +10,7 @@ export {
   isValidFlag,
   formatFlag,
   extractFlag,
+  generateFlag,
 } from './flag';
 
 export {

@@ -1,0 +1,4 @@
+CREATE DATABASE billing_vuln;
+CREATE DATABASE billing_ref;
+GRANT ALL PRIVILEGES ON DATABASE billing_vuln TO billing;
+GRANT ALL PRIVILEGES ON DATABASE billing_ref TO billing;

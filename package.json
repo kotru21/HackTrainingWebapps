@@ -8,11 +8,16 @@
     "apps/app1-helpdesk",
     "apps/app2-billing/vulnerable",
     "apps/app2-billing/reference",
+    "platform/scoreboard",
+    "platform/flag-planter",
+    "platform/checker",
+    "platform/internal-metadata",
     "tools/attacker-scripts"
   ],
   "scripts": {
-    "build": "npm run build -w @hacktraining/shared && npm run build -w @hacktraining/app1-helpdesk && npm run build -w @hacktraining/app2-billing-vulnerable && npm run build -w @hacktraining/app2-billing-reference",
+    "build": "npm run build -w @hacktraining/shared && npm run build -w @hacktraining/app1-helpdesk && npm run build -w @hacktraining/app2-billing-vulnerable && npm run build -w @hacktraining/app2-billing-reference && npm run build -w @hacktraining/scoreboard && npm run build -w @hacktraining/flag-planter && npm run build -w @hacktraining/checker",
     "build:shared": "npm run build -w @hacktraining/shared",
+    "build:platform": "npm run build -w @hacktraining/shared && npm run build -w @hacktraining/scoreboard && npm run build -w @hacktraining/flag-planter && npm run build -w @hacktraining/checker",
     "typecheck": "npm run build"
   },
   "engines": {

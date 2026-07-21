@@ -1,0 +1,313 @@
+# HackTrainingWebapps — local full polygon (Phase 5)
+# Usage (PowerShell / bash):
+#   docker compose -f deploy/docker/compose.dev.yml up --build -d
+#   docker compose -f deploy/docker/compose.dev.yml ps
+#   docker compose -f deploy/docker/compose.dev.yml down -v
+#
+# Host ports: helpdesk 3001/3002, billing 3011/3012, scoreboard 3020,
+#             planter 3021, checker 3022, metadata 3099,
+#             PG helpdesk 5433, billing 5434, scoreboard 5435
+
+name: hacktraining
+
+services:
+  helpdesk-pg:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: helpdesk
+      POSTGRES_PASSWORD: helpdesk # INTENTIONALLY WEAK — training only
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - helpdesk_pg_data:/var/lib/postgresql/data
+      - ./init/helpdesk-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U helpdesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  billing-pg:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: billing
+      POSTGRES_PASSWORD: billing # INTENTIONALLY WEAK — training only
+      POSTGRES_DB: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5434:5432"
+    volumes:
+      - billing_pg_data:/var/lib/postgresql/data
+      - ./init/billing-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billing"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  scoreboard-pg:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: scoreboard
+      POSTGRES_PASSWORD: scoreboard # INTENTIONALLY WEAK — training only
+      POSTGRES_DB: scoreboard
+    ports:
+      - "5435:5432"
+    volumes:
+      - scoreboard_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scoreboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app1-helpdesk-vuln:
+    build:
+      context: ../..
+      dockerfile: apps/app1-helpdesk/vulnerable/Dockerfile
+    environment:
+      PORT: "3000"
+      TEAM: a
+      DATABASE_URL: postgres://helpdesk:helpdesk@helpdesk-pg:5432/helpdesk_vuln
+      JWT_SECRET: secret # INTENTIONALLY WEAK — training only
+      EXPOSE_DEBUG: "true"
+      SECURITY_HEADERS: "off"
+      CORS_ORIGIN: "*"
+      CORS_CREDENTIALS: "true"
+      SEED_ADMIN_PASSWORD: admin123 # INTENTIONALLY WEAK — training only
+      SERVE_STATIC_ROOT: "."
+      FLAG_FILE_PATH: /flags/app1.flag
+      DEBUG_CANARY_FLAG: TRN{deb06111111111111111111111111111}
+    ports:
+      - "3001:3000"
+    depends_on:
+      helpdesk-pg:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  app1-helpdesk-ref:
+    build:
+      context: ../..
+      dockerfile: apps/app1-helpdesk/reference/Dockerfile
+    environment:
+      PORT: "3000"
+      TEAM: b
+      DATABASE_URL: postgres://helpdesk:helpdesk@helpdesk-pg:5432/helpdesk_ref
+      JWT_SECRET: strong-helpdesk-jwt-secret-change-me
+      EXPOSE_DEBUG: "false"
+      SECURITY_HEADERS: "on"
+      CORS_ORIGIN: https://helpdesk.local
+      CORS_CREDENTIALS: "true"
+      SEED_ADMIN_PASSWORD: change-me-strong
+      SERVE_STATIC_ROOT: ./public
+      FLAG_FILE_PATH: /flags/app1.flag
+    ports:
+      - "3002:3000"
+    depends_on:
+      helpdesk-pg:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  app2-billing-vuln:
+    build:
+      context: ../..
+      dockerfile: apps/app2-billing/vulnerable/Dockerfile
+    environment:
+      PORT: "3011"
+      TEAM: a
+      DATABASE_URL: postgres://billing:billing@billing-pg:5432/billing_vuln
+      JWT_SECRET: billing-secret # INTENTIONALLY WEAK — training only
+      ADMIN_FLAG: TRN{a2044444444444444444444444444444}
+    ports:
+      - "3011:3011"
+    depends_on:
+      billing-pg:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3011/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+
+  app2-billing-ref:
+    build:
+      context: ../..
+      dockerfile: apps/app2-billing/reference/Dockerfile
+    environment:
+      PORT: "3012"
+      TEAM: b
+      DATABASE_URL: postgres://billing:billing@billing-pg:5432/billing_ref
+      JWT_SECRET: billing-secret-ref
+      ADMIN_FLAG: TRN{a2044444444444444444444444444444}
+    ports:
+      - "3012:3012"
+    depends_on:
+      billing-pg:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3012/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+
+  internal-metadata:
+    build:
+      context: ../..
+      dockerfile: platform/internal-metadata/Dockerfile
+    environment:
+      PORT: "3099"
+      HOST: "0.0.0.0"
+      METADATA_PLANT_TOKEN: metadata-plant-token # INTENTIONALLY WEAK — training only
+      SSRF_FLAG: TRN{a2066666666666666666666666666666}
+    ports:
+      - "3099:3099"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3099/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  scoreboard:
+    build:
+      context: ../..
+      dockerfile: platform/scoreboard/Dockerfile
+    environment:
+      PORT: "3020"
+      DATABASE_URL: postgres://scoreboard:scoreboard@scoreboard-pg:5432/scoreboard
+      SCOREBOARD_CONFIG: /platform/scoreboard/config.compose.yaml
+    volumes:
+      - ../../platform/scoreboard/config.compose.yaml:/platform/scoreboard/config.compose.yaml:ro
+    ports:
+      - "3020:3020"
+    depends_on:
+      scoreboard-pg:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3020/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  flag-planter:
+    build:
+      context: ../..
+      dockerfile: platform/flag-planter/Dockerfile
+    environment:
+      HEALTH_PORT: "3021"
+      SCOREBOARD_URL: http://scoreboard:3020
+      SCOREBOARD_CONFIG: /platform/scoreboard/config.compose.yaml
+      STARTUP_DELAY_MS: "15000"
+    volumes:
+      - ../../platform/scoreboard/config.compose.yaml:/platform/scoreboard/config.compose.yaml:ro
+    ports:
+      - "3021:3021"
+    depends_on:
+      scoreboard:
+        condition: service_healthy
+      app2-billing-vuln:
+        condition: service_healthy
+      app2-billing-ref:
+        condition: service_healthy
+      internal-metadata:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3021/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 25s
+
+  checker:
+    build:
+      context: ../..
+      dockerfile: platform/checker/Dockerfile
+    environment:
+      HEALTH_PORT: "3022"
+      SCOREBOARD_URL: http://scoreboard:3020
+      SCOREBOARD_CONFIG: /platform/scoreboard/config.compose.yaml
+      STARTUP_DELAY_MS: "20000"
+      CHECKER_TIMEOUT_MS: "8000"
+    volumes:
+      - ../../platform/scoreboard/config.compose.yaml:/platform/scoreboard/config.compose.yaml:ro
+    ports:
+      - "3022:3022"
+    depends_on:
+      scoreboard:
+        condition: service_healthy
+      app2-billing-vuln:
+        condition: service_healthy
+      app2-billing-ref:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3022/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+volumes:
+  helpdesk_pg_data:
+  billing_pg_data:
+  scoreboard_pg_data:

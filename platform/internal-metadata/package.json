@@ -2,7 +2,7 @@
   "name": "@hacktraining/internal-metadata",
   "version": "0.0.1",
   "private": true,
-  "description": "Minimal SSRF training target (Phase 2 stub; full platform in Phase 4)",
+  "description": "SSRF training target — plantable TRN flag for app2 V2.6",
   "main": "server.mjs",
   "scripts": {
     "start": "node server.mjs"

@@ -1,26 +1,38 @@
-# Reference image: non-root, pinned tag, hardened (V1.8 fix)
+# Reference app1 — non-root, pinned tag (V1.8 fix)
+# Build context: repository root
+FROM node:22.16.0-bookworm-slim AS build
+
+WORKDIR /app
+
+COPY packages/shared /packages/shared
+COPY tsconfig.base.json /tsconfig.base.json
+COPY apps/app1-helpdesk/package.json /app/package.json
+COPY apps/app1-helpdesk/tsconfig.json /app/tsconfig.json
+COPY apps/app1-helpdesk/src /app/src
+COPY apps/app1-helpdesk/views /app/views
+COPY apps/app1-helpdesk/public /app/public
+
+# Overlay: patched ejs@3.1.10
+COPY apps/app1-helpdesk/reference/package.json /tmp/overlay.json
+RUN node -e "const a=require('./package.json'); const o=require('/tmp/overlay.json'); a.dependencies=o.dependencies; a.dependencies['@hacktraining/shared']='file:/packages/shared'; require('fs').writeFileSync('package.json', JSON.stringify(a,null,2));"
+
+WORKDIR /packages/shared
+RUN npm install && npm run build
+
+WORKDIR /app
+RUN npm install && npm run build && npm prune --omit=dev
+
 FROM node:22.16.0-bookworm-slim
 
 RUN groupadd -r app && useradd -r -g app app
 
 WORKDIR /app
-
-COPY packages/shared /packages/shared
-COPY apps/app1-helpdesk/reference/package.json /app/package.json
-COPY apps/app1-helpdesk/src /app/src
-COPY apps/app1-helpdesk/views /app/views
-COPY apps/app1-helpdesk/public /app/public
-COPY apps/app1-helpdesk/tsconfig.json /app/tsconfig.json
-COPY tsconfig.base.json /tsconfig.base.json
+COPY --from=build /packages/shared /packages/shared
+COPY --from=build /app /app
 
 RUN mkdir -p /flags \
   && echo 'TRN{c0ffee1234567890abcdef1234567890}' > /flags/app1.flag \
   && chown -R app:app /app /flags /packages
-
-WORKDIR /packages/shared
-RUN npm install --omit=dev && npm run build || true
-WORKDIR /app
-RUN npm install --omit=dev
 
 USER app
 
@@ -31,7 +43,8 @@ ENV NODE_ENV=production \
     SECURITY_HEADERS=on \
     CORS_ORIGIN=https://helpdesk.local \
     CORS_CREDENTIALS=true \
-    PORT=3000
+    PORT=3000 \
+    TEAM=b
 
 EXPOSE 3000
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["node", "dist/index.js"]

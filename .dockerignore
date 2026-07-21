@@ -18,10 +18,12 @@ docs
 npm-debug.log*
 yarn-error.log*
 
-# Local / secrets
+# Local / secrets (compose injects env; training .env may be copied if needed)
 .env
 .env.*
 !.env.example
+!apps/**/vulnerable/.env
+!apps/**/reference/.env
 secrets
 *.pem
 *.key

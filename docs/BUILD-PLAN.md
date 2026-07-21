@@ -91,8 +91,9 @@ allow-list полей, bcrypt+`randomBytes`, SSRF-guard) + `SOLUTION.md` (экс
 - `platform/checker/` — функциональный SLA-сценарий на каждый стенд; статусы up/down/mumble.
 - `platform/internal-metadata/` — учебная мишень SSRF (отдаёт флаг только из pod'а app).
 - `docs/scoring.md` — правила и формула (§6 SPEC).
-**Приёмка:** end-to-end на локальном compose: planter кладёт флаг → PoC крадёт → submit начисляет очки →
-табло обновляется; остановка app роняет SLA в чекере.
+**Приёмка:** end-to-end локально (scoreboard Postgres + platform-сервисы; полный `compose.dev.yml` —
+в Фазе 5): planter кладёт флаг → PoC крадёт → submit начисляет очки → табло обновляется;
+остановка app роняет SLA в чекере. Скрипт: `tools/attacker-scripts/phase4-e2e.mjs`.
 
 ---
 
@@ -100,10 +101,12 @@ allow-list полей, bcrypt+`randomBytes`, SSRF-guard) + `SOLUTION.md` (экс
 
 ## Фаза 5 — Docker и локальный запуск
 
-**Артефакты:** `Dockerfile` для app1/app2 (vuln и ref), scoreboard/checker/planter;
-`deploy/docker/compose.dev.yml` (app + postgres + платформа). Non-root/пиннинг — в reference-образах.
-**Приёмка:** `docker compose -f deploy/docker/compose.dev.yml up` поднимает полный локальный полигон;
-проходят PoC и SLA-сценарии.
+**Артефакты:** `Dockerfile` для app1/app2 (vuln и ref), scoreboard/checker/planter/internal-metadata;
+`deploy/docker/compose.dev.yml` (app + postgres + платформа). Non-root/пиннинг — в reference-образах
+и platform-сервисах; vulnerable app1 — soft image (`node:latest`, root) под V1.8.
+**Приёмка:** `docker compose -f deploy/docker/compose.dev.yml up --build -d` поднимает полный локальный
+полигон; проходят PoC (`tools/attacker-scripts`) и SLA-сценарии (`sla-smoke` / checker).
+См. `deploy/docker/README.md` (PowerShell-совместимо).
 
 ---
 

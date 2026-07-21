@@ -93,7 +93,8 @@ Web UI: '/' — авто-обновляемое табло (poll GET /api/scoreb
 - `planted_flags(id, flag, team, service, vuln_id, tick, planted_at, expires_at)`
 - `submissions(id, submitter_team, flag, vuln_id, points, status, first_blood, src_ip, submitted_at)`
 - `sla_samples(id, team, service, tick, status, latency_ms, sampled_at)`
-- `rounds(id, n, attacker_team, defender_team, started_at, ended_at)`
+- `rounds(id, n, attacker_team, defender_team, started_at, ended_at, current_tick)`
+- `sla_samples(..., excluded, detail jsonb)` — расширения для разбора/исключений
 
 ---
 
@@ -124,8 +125,12 @@ flag_values:
   CFG-JWT: 300
   CFG-RCE: 300
   CFG-LEAK: 150
+  CFG-CREDS: 120
   A02-CRYPTO: 150
   A03-XSS: 150
   A03-SQLI: 200
   A10-SSRF: 200
 ```
+
+Колонка `rounds.current_tick` и поля `sla_samples.excluded` / `detail` — рабочие расширения схемы
+для тика плантара/чекера и разбора; контракт API §5 не меняют.

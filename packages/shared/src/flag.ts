@@ -2,6 +2,7 @@
  * Flag format: TRN{<32 hex>} — SPEC §6 / scoring.md.
  * Single source of truth; do not hardcode elsewhere.
  */
+import { randomBytes } from 'node:crypto';
 
 /** RegExp matching a flag anywhere in a string (for extraction / scanning). */
 export const FLAG_REGEX = /TRN\{[0-9a-f]{32}\}/;
@@ -34,4 +35,9 @@ export function formatFlag(hex32: string): string {
 export function extractFlag(text: string): string | null {
   const match = FLAG_REGEX.exec(text);
   return match ? match[0] : null;
+}
+
+/** Generate a fresh training flag (crypto-safe 16 bytes → 32 hex). */
+export function generateFlag(): string {
+  return formatFlag(randomBytes(16).toString('hex'));
 }

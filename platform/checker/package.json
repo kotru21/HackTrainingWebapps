@@ -1,0 +1,23 @@
+{
+  "name": "@hacktraining/checker",
+  "version": "0.0.1",
+  "private": true,
+  "description": "SLA checker — up/down/mumble per stand each tick",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "once": "tsx src/index.ts --once"
+  },
+  "dependencies": {
+    "@hacktraining/shared": "0.0.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.15.30",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
