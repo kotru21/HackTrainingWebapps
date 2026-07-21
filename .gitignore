@@ -56,3 +56,7 @@ coverage/
 # Local k3s / tooling
 .k3s/
 .kube/
+
+# Python bytecode cache (skills)
+__pycache__/
+*.pyc
