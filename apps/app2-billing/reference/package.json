@@ -1,0 +1,19 @@
+{
+  "name": "@hacktraining/app2-billing-reference",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Billing training app — reference (fixed) variant (Phase 2)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@hacktraining/shared": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "typescript": "^5.8.3"
+  }
+}

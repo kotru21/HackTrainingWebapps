@@ -1,0 +1,43 @@
+# Git / VCS
+.git
+.gitignore
+.gitattributes
+
+# Docs & IDE (not needed in images)
+docs
+.cursor
+.vscode
+.idea
+*.md
+!apps/**/reference/SOLUTION.md
+
+# Dependencies & build (rebuilt in image)
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# Local / secrets
+.env
+.env.*
+!.env.example
+secrets
+*.pem
+*.key
+kubeconfig*
+
+# Round artifacts & local data
+artifacts
+coverage
+.nyc_output
+logs
+*.log
+
+# Deploy scripts not needed inside app images
+scripts
+tools/attacker-scripts
+
+# OS
+.DS_Store
+Thumbs.db

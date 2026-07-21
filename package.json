@@ -1,0 +1,23 @@
+{
+  "name": "hacktraining-webapps",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Attack/defense training range for web application security",
+  "workspaces": [
+    "packages/*",
+    "apps/app1-helpdesk",
+    "apps/app2-billing/vulnerable",
+    "apps/app2-billing/reference"
+  ],
+  "scripts": {
+    "build": "npm run build -w @hacktraining/shared && npm run build -w @hacktraining/app1-helpdesk && npm run build -w @hacktraining/app2-billing-vulnerable && npm run build -w @hacktraining/app2-billing-reference",
+    "build:shared": "npm run build -w @hacktraining/shared",
+    "typecheck": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
