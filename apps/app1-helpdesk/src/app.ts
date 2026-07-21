@@ -16,6 +16,10 @@ import { debugRouter } from './routes/debug';
 export function createApp(config: AppConfig, logger: Logger): Express {
   const app = express();
   app.set('trust proxy', 1);
+  // Express 5 defaults query parser to 'simple'; the app was authored against Express 4's
+  // 'extended' (qs) parser, which parses nested keys like `a[b][c]`. Restore it so the
+  // helpdesk behaves as designed (this is also what enables the V1.2 ejs SSTI path).
+  app.set('query parser', 'extended');
   app.set('view engine', 'ejs');
   app.set('views', config.viewsDir);
 
