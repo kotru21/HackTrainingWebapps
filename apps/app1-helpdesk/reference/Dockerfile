@@ -36,8 +36,12 @@ RUN mkdir -p /flags \
 
 USER app
 
+# Reference models good practice: strong secrets baked as safe defaults
+# (real deploys inject via k8s Secret; fail-closed refuses weak values in production).
 ENV NODE_ENV=production \
     EXPOSE_DEBUG=false \
+    JWT_SECRET=helpdesk-ref-3d5f60a1b2c3d4e5f60718a9c8f2c1e9 \
+    SEED_ADMIN_PASSWORD=RefAdm-9f3c2e1a7b8d4e6f \
     FLAG_FILE_PATH=/flags/app1.flag \
     SERVE_STATIC_ROOT=./public \
     SECURITY_HEADERS=on \

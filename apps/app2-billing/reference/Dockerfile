@@ -30,10 +30,11 @@ USER app
 
 WORKDIR /apps/app2-billing/reference
 
+# Reference models good practice: strong JWT secret (real deploys inject via Secret).
 ENV NODE_ENV=production \
     PORT=3012 \
     TEAM=b \
-    JWT_SECRET=billing-secret-ref \
+    JWT_SECRET=billing-ref-8f2c1e9a7b3d5f60a1b2c3d4e5f60718a9c \
     ADMIN_FLAG=TRN{a2044444444444444444444444444444}
 
 EXPOSE 3012
