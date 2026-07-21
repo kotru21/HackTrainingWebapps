@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import type { Pool } from 'pg';
 import { createLogger, newReqId } from '@hacktraining/shared';
@@ -13,6 +15,13 @@ import {
 } from './scoring';
 
 const log = createLogger({ service: 'scoreboard', team: 'platform' });
+
+let LOGO_BUF: Buffer | null = null;
+try {
+  LOGO_BUF = fs.readFileSync(path.join(__dirname, '..', 'assets', 'logo.png'));
+} catch {
+  LOGO_BUF = null;
+}
 
 export function createApp(pool: Pool, cfg: ScoreboardConfig): express.Express {
   const app = express();
@@ -193,6 +202,16 @@ export function createApp(pool: Pool, cfg: ScoreboardConfig): express.Express {
     res.json({ current_tick: updated.current_tick, round_n: round.n });
   });
 
+  app.get('/logo.png', (_req, res) => {
+    if (!LOGO_BUF) {
+      res.status(404).end();
+      return;
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.end(LOGO_BUF);
+  });
+
   app.get('/', (_req, res) => {
     res.type('html').send(BOARD_HTML);
   });
@@ -206,7 +225,7 @@ const BOARD_HTML = `<!DOCTYPE html>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
-  <title>HackTraining Scoreboard</title>
+  <title>ВФ Training Scoreboard</title>
   <style>
     :root{
       --bg:#020617; --surface:#0b1220; --surface-2:#111a2e; --border:#1e293b; --border-2:#334155;
@@ -228,7 +247,7 @@ const BOARD_HTML = `<!DOCTYPE html>
       border-bottom:1px solid var(--border);padding:14px clamp(16px,3vw,32px);
       display:flex;align-items:center;gap:14px;flex-wrap:wrap}
     .brand{display:flex;align-items:center;gap:12px;margin-right:auto;min-width:0}
-    .logo{width:34px;height:34px;flex:0 0 auto;color:var(--defense);filter:drop-shadow(0 0 10px rgba(56,189,248,.4))}
+    .logo{height:52px;width:auto;flex:0 0 auto;display:block;filter:drop-shadow(0 0 7px rgba(0,0,0,.6))}
     h1{margin:0;font-size:clamp(1.05rem,2vw,1.4rem);letter-spacing:.02em;font-weight:700;white-space:nowrap}
     h1 span{color:var(--muted);font-weight:500}
     .sub{color:var(--faint);font-size:.74rem;margin-top:2px}
@@ -285,9 +304,7 @@ const BOARD_HTML = `<!DOCTYPE html>
 <body>
   <header>
     <div class="brand">
-      <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 2.5 4 5.5v6c0 4.5 3.2 8.3 8 9.9 4.8-1.6 8-5.4 8-9.9v-6z"/><path d="m9 12 2 2 4-4"/>
-      </svg>
+      <img class="logo" src="/logo.png" alt="Военный факультет БГУИР" />
       <div><h1>HackTraining <span>Scoreboard</span></h1><div class="sub" id="sub">attack / defense</div></div>
     </div>
     <div class="chip"><span class="k">round</span><span id="roundInfo">—</span></div>
