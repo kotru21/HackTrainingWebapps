@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ticket #<%= ticket.id %> — Helpdesk</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">Acme Helpdesk</a>
+    <nav>
+      <a href="/tickets">Tickets</a>
+      <% if (user.role === 'admin') { %><a href="/admin">Admin</a><% } %>
+      <form class="inline" method="post" action="/logout"><button type="submit">Logout</button></form>
+    </nav>
+  </header>
+  <main>
+    <h1><%= ticket.title %></h1>
+    <p class="status"><%= ticket.status %></p>
+    <article class="ticket-body"><%= ticket.body %></article>
+    <h2>Attachments</h2>
+    <ul>
+      <% attachments.forEach(function(a) { %>
+        <li><%= a.filename %> (<%= a.content_type %>)</li>
+      <% }) %>
+    </ul>
+  </main>
+</body>
+</html>

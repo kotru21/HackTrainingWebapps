@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin — Helpdesk</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">Acme Helpdesk</a>
+    <nav>
+      <a href="/tickets">Tickets</a>
+      <a href="/admin">Admin</a>
+      <form class="inline" method="post" action="/logout"><button type="submit">Logout</button></form>
+    </nav>
+  </header>
+  <main>
+    <h1>Admin panel</h1>
+    <h2>All tickets</h2>
+    <ul class="ticket-list">
+      <% tickets.forEach(function(t) { %>
+        <li><a href="/tickets/<%= t.id %>"><%= t.title %></a> — <%= t.status %></li>
+      <% }) %>
+    </ul>
+    <h2>Admin secrets</h2>
+    <ul>
+      <% secrets.forEach(function(s) { %>
+        <li><code><%= s.name %></code>: <code><%= s.value %></code></li>
+      <% }) %>
+    </ul>
+  </main>
+</body>
+</html>

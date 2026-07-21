@@ -1,29 +1,27 @@
-/**
- * app2-billing reference scaffold (Phase 0).
- * Fixed OWASP patterns land in Phase 2 — this proves shared logger import.
- */
-import {
-  createLogger,
-  FLAG_REGEX,
-  isValidFlag,
-  logEvent,
-  newReqId,
-} from '@hacktraining/shared';
+import fs from 'node:fs';
+import path from 'node:path';
+import dotenv from 'dotenv';
+import { loadConfig } from './config';
+import { createAppLogger } from './context';
+import { initDb } from './db';
+import { migrateAndSeed } from './seed';
+import { createApp } from './app';
 
-const logger = createLogger({
-  service: 'app2-billing',
-  team: process.env.TEAM ?? 'dev',
-});
+const envFile = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envFile)) dotenv.config({ path: envFile });
 
-logEvent(logger, {
-  event: 'bootstrap',
-  reqId: newReqId(),
-  route: 'scaffold',
-  meta: { phase: 0, variant: 'reference', flagRegexSource: FLAG_REGEX.source },
-}, 'app2-billing reference Phase 0 scaffold ready');
-
-export function smokeCheckFlagShape(candidate: string): boolean {
-  return isValidFlag(candidate);
+async function main(): Promise<void> {
+  const config = loadConfig();
+  const logger = createAppLogger(config);
+  initDb(config, logger);
+  await migrateAndSeed(logger);
+  const app = createApp(config, logger);
+  app.listen(config.port, () => {
+    logger.info({ event: 'bootstrap', port: config.port }, 'app2-billing reference listening');
+  });
 }
 
-export { logger, FLAG_REGEX };
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

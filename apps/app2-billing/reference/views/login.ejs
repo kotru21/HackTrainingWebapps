@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Login — Billing</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="auth">
+  <h1>Acme Billing</h1>
+  <p class="muted">Sign in to manage invoices</p>
+  <form method="post" action="/api/login" id="f">
+    <label>Username <input name="username" id="u" required /></label>
+    <label>Password <input name="password" id="p" type="password" required /></label>
+    <button type="submit">Sign in</button>
+  </form>
+  <script>
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('u').value,
+          password: document.getElementById('p').value,
+        }),
+      });
+      if (res.ok) location.href = '/profile';
+      else alert('login failed');
+    });
+  </script>
+</body>
+</html>

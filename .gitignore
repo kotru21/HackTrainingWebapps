@@ -12,6 +12,9 @@ build/
 .env.*
 !.env.example
 !.env.vulnerable.example
+# Training stand env files are intentional (weak secrets marked in-file)
+!apps/**/vulnerable/.env
+!apps/**/reference/.env
 secrets/
 *.pem
 *.key
@@ -28,6 +31,10 @@ yarn-error.log*
 # Round artifacts (collected by collect-logs.sh)
 artifacts/**
 !artifacts/.gitkeep
+
+# Local planted flag files (created at runtime)
+apps/**/flags/
+**/flags/*.flag
 
 # IDE / OS
 .idea/

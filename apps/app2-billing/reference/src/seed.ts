@@ -1,0 +1,79 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import bcrypt from 'bcryptjs';
+import type { Logger } from '@hacktraining/shared';
+import { query } from './db';
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
+}
+
+const FLAGS = {
+  IDOR: 'TRN{a2011111111111111111111111111111}',
+  SQLI: 'TRN{a2022222222222222222222222222222}',
+  XSS: 'TRN{a2033333333333333333333333333333}',
+  CRYPTO: 'TRN{a2055555555555555555555555555555}',
+};
+
+export async function migrateAndSeed(logger: Logger): Promise<void> {
+  const schemaPath = path.join(__dirname, '..', '..', 'shared', 'db', 'schema.sql');
+  const schema = fs.readFileSync(schemaPath, 'utf8');
+  await query(schema);
+
+  const adminHash = await hashPassword('admin123');
+  const aliceHash = await hashPassword('alice123');
+  const bobHash = await hashPassword('bob123');
+  const carolHash = await hashPassword('carol123');
+
+  await query(
+    `INSERT INTO users (username, password_hash, role, display_name, bio, private_note)
+     VALUES
+       ('admin', $1, 'admin', 'Billing Admin', 'Ops', ''),
+       ('alice', $2, 'user', 'Alice', 'Customer', ''),
+       ('bob', $3, 'user', 'Bob Victim', 'Victim account', ''),
+       ('carol', $4, 'user', 'Carol', 'Reset target', $5)
+     ON CONFLICT (username) DO UPDATE SET
+       password_hash = EXCLUDED.password_hash,
+       private_note = COALESCE(NULLIF(EXCLUDED.private_note, ''), users.private_note)`,
+    [adminHash, aliceHash, bobHash, carolHash, FLAGS.CRYPTO],
+  );
+
+  const bob = await query<{ id: number }>(`SELECT id FROM users WHERE username = 'bob'`);
+  const alice = await query<{ id: number }>(`SELECT id FROM users WHERE username = 'alice'`);
+  const bobId = bob.rows[0].id;
+  const aliceId = alice.rows[0].id;
+
+  await query(`DELETE FROM invoices WHERE owner_id = $1 AND title = 'Confidential retainer'`, [
+    bobId,
+  ]);
+  await query(
+    `INSERT INTO invoices (owner_id, title, amount_cents, status, memo)
+     VALUES ($1, 'Confidential retainer', 99900, 'open', $2)`,
+    [bobId, FLAGS.IDOR],
+  );
+  await query(
+    `INSERT INTO invoices (owner_id, title, amount_cents, status, memo)
+     SELECT $1, 'Alice office supplies', 4200, 'open', 'routine'
+     WHERE NOT EXISTS (
+       SELECT 1 FROM invoices WHERE owner_id = $1 AND title = 'Alice office supplies'
+     )`,
+    [aliceId],
+  );
+
+  await query(
+    `INSERT INTO secret_flags (name, value) VALUES ('sqli_flag', $1)
+     ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value`,
+    [FLAGS.SQLI],
+  );
+
+  await query(`DELETE FROM admin_notes`);
+  await query(`INSERT INTO admin_notes (body) VALUES ($1)`, [
+    `Private ops note containing ${FLAGS.XSS}`,
+  ]);
+
+  logger.info({ event: 'bootstrap' }, 'app2 reference schema+seed ready');
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@hacktraining/internal-metadata",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Minimal SSRF training target (Phase 2 stub; full platform in Phase 4)",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

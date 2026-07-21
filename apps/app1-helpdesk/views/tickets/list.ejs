@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tickets — Helpdesk</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">Acme Helpdesk</a>
+    <nav>
+      <a href="/tickets">Tickets</a>
+      <% if (user.role === 'admin') { %><a href="/admin">Admin</a><% } %>
+      <form class="inline" method="post" action="/logout"><button type="submit">Logout</button></form>
+    </nav>
+  </header>
+  <main>
+    <h1>Your tickets</h1>
+    <% if (typeof error !== 'undefined' && error) { %><p class="error"><%= error %></p><% } %>
+    <form method="post" action="/tickets" class="card-form">
+      <label>Title <input name="title" required /></label>
+      <label>Body <textarea name="body" rows="3" required></textarea></label>
+      <button type="submit">Create ticket</button>
+    </form>
+    <ul class="ticket-list">
+      <% tickets.forEach(function(t) { %>
+        <li><a href="/tickets/<%= t.id %>"><%= t.title %></a> — <span class="status"><%= t.status %></span></li>
+      <% }) %>
+    </ul>
+  </main>
+</body>
+</html>

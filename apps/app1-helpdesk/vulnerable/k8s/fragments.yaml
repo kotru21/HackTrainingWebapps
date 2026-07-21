@@ -1,0 +1,47 @@
+# V1.7/V1.8 — postgres exposed as NodePort, app Deployment without securityContext/resources
+apiVersion: v1
+kind: Service
+metadata:
+  name: helpdesk-postgres
+spec:
+  type: NodePort
+  ports:
+    - port: 5432
+      targetPort: 5432
+      nodePort: 30432
+  selector:
+    app: helpdesk-postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helpdesk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: helpdesk-app
+  template:
+    metadata:
+      labels:
+        app: helpdesk-app
+        service: app1-helpdesk
+    spec:
+      containers:
+        - name: app
+          image: app1-helpdesk:vulnerable
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          # Intentionally missing: securityContext, resources (V1.8)
+          envFrom:
+            - configMapRef:
+                name: helpdesk-config
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3000

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin — Billing</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">Acme Billing</a>
+    <nav>
+      <a href="/profile">Profile</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </header>
+  <main>
+    <h1>Admin panel</h1>
+    <h2>Private notes</h2>
+    <% notes.forEach(function(n) { %>
+      <div class="card"><%= n.body %></div>
+    <% }) %>
+    <h2>Recent comments</h2>
+    <% comments.forEach(function(c) { %>
+      <!-- V2.3 fix: escaped comment body -->
+      <div class="comment"><strong><%= c.username %></strong>: <%= c.body %></div>
+    <% }) %>
+    <h2>User bios</h2>
+    <% bios.forEach(function(b) { %>
+      <div class="card"><strong><%= b.username %></strong>: <%= b.bio %></div>
+    <% }) %>
+  </main>
+</body>
+</html>
