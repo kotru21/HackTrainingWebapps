@@ -1,5 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
-import { createLogger, logEvent, newReqId, type Logger } from '@hacktraining/shared';
+import {
+  createLogger,
+  logEvent,
+  newReqId,
+  SECURITY_AUDIT_INSERT_SQL,
+  toAuditParams,
+  type Logger,
+} from '@hacktraining/shared';
 import type { AppConfig } from './config';
 import { query } from './db';
 
@@ -54,15 +61,14 @@ export async function writeAudit(
   },
 ): Promise<void> {
   await query(
-    `INSERT INTO security_audit (team, actor, event, route, src_ip, detail)
-     VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
-    [
-      config.team,
-      fields.actor,
-      fields.event,
-      fields.route,
-      fields.srcIp ?? null,
-      JSON.stringify(fields.detail ?? {}),
-    ],
+    SECURITY_AUDIT_INSERT_SQL,
+    toAuditParams({
+      team: config.team,
+      actor: fields.actor,
+      event: fields.event,
+      route: fields.route,
+      src_ip: fields.srcIp ?? null,
+      detail: fields.detail,
+    }),
   );
 }

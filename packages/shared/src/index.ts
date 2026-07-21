@@ -30,3 +30,10 @@ export {
   type CreateLoggerOptions,
   type Logger,
 } from './logger';
+
+export {
+  SECURITY_AUDIT_INSERT_SQL,
+  SECURITY_AUDIT_DDL,
+  toAuditParams,
+  type AuditWriteInput,
+} from './audit';

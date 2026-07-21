@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import type { AppConfig } from '../config';
 import { logEvent } from '@hacktraining/shared';
-import type { AuthUser } from '../types';
+import { writeAudit, type AuthUser } from '../types';
 
 interface HelpdeskTokenClaims {
   sub: number;
@@ -48,8 +48,28 @@ export function optionalAuth(config: AppConfig) {
         srcIp: req.ip,
         meta: { role: payload.role, iat: payload.iat ?? null, username: payload.username },
       });
+      void writeAudit(config, {
+        actor: String(payload.sub),
+        event: 'auth.token.verified',
+        route: `${req.method} ${req.path}`,
+        srcIp: req.ip,
+        detail: { role: payload.role, iat: payload.iat ?? null, username: payload.username },
+      });
     } catch {
-      // Invalid token — leave unauthenticated; routes decide 401
+      logEvent(req.ctx.logger, {
+        event: 'auth.token.forged',
+        reqId: req.ctx.reqId,
+        route: `${req.method} ${req.path}`,
+        srcIp: req.ip,
+        meta: { reason: 'verify_failed' },
+      });
+      void writeAudit(config, {
+        actor: null,
+        event: 'auth.token.forged',
+        route: `${req.method} ${req.path}`,
+        srcIp: req.ip,
+        detail: { reason: 'verify_failed' },
+      });
     }
     next();
   };
@@ -63,28 +83,44 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   next();
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  if (!req.user || req.user.role !== 'admin') {
+export function requireAdmin(config: AppConfig) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user || req.user.role !== 'admin') {
+      logEvent(req.ctx.logger, {
+        event: 'authz.deny',
+        reqId: req.ctx.reqId,
+        route: `${req.method} ${req.path}`,
+        userId: req.user?.id ?? null,
+        srcIp: req.ip,
+        status: 403,
+        meta: { reason: 'admin_required' },
+      });
+      void writeAudit(config, {
+        actor: req.user ? String(req.user.id) : null,
+        event: 'authz.deny',
+        route: `${req.method} ${req.path}`,
+        srcIp: req.ip,
+        detail: { reason: 'admin_required' },
+      });
+      res.status(403).json({ error: 'admin required' });
+      return;
+    }
     logEvent(req.ctx.logger, {
-      event: 'authz.deny',
+      event: 'authz.allow',
       reqId: req.ctx.reqId,
       route: `${req.method} ${req.path}`,
-      userId: req.user?.id ?? null,
+      userId: req.user.id,
       srcIp: req.ip,
-      status: 403,
-      meta: { reason: 'admin_required' },
+      status: 200,
+      meta: { role: 'admin' },
     });
-    res.status(403).json({ error: 'admin required' });
-    return;
-  }
-  logEvent(req.ctx.logger, {
-    event: 'authz.allow',
-    reqId: req.ctx.reqId,
-    route: `${req.method} ${req.path}`,
-    userId: req.user.id,
-    srcIp: req.ip,
-    status: 200,
-    meta: { role: 'admin' },
-  });
-  next();
+    void writeAudit(config, {
+      actor: String(req.user.id),
+      event: 'authz.allow',
+      route: `${req.method} ${req.path}`,
+      srcIp: req.ip,
+      detail: { role: 'admin' },
+    });
+    next();
+  };
 }

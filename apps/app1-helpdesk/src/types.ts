@@ -1,6 +1,14 @@
 import type { Request, Response, NextFunction } from 'express';
-import { createLogger, logEvent, newReqId, type Logger } from '@hacktraining/shared';
+import {
+  createLogger,
+  logEvent,
+  newReqId,
+  SECURITY_AUDIT_INSERT_SQL,
+  toAuditParams,
+  type Logger,
+} from '@hacktraining/shared';
 import type { AppConfig } from './config';
+import { query } from './db';
 
 export interface RequestContext {
   reqId: string;
@@ -47,4 +55,28 @@ export function requestContextMiddleware(baseLogger: Logger) {
     });
     next();
   };
+}
+
+/** Persist security event to security_audit (SPEC §7.2). Never put flags in detail. */
+export async function writeAudit(
+  config: AppConfig,
+  fields: {
+    actor: string | null;
+    event: string;
+    route: string;
+    srcIp?: string;
+    detail?: Record<string, unknown>;
+  },
+): Promise<void> {
+  await query(
+    SECURITY_AUDIT_INSERT_SQL,
+    toAuditParams({
+      team: config.team,
+      actor: fields.actor,
+      event: fields.event,
+      route: fields.route,
+      src_ip: fields.srcIp ?? null,
+      detail: fields.detail,
+    }),
+  );
 }

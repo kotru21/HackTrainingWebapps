@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { logEvent } from '@hacktraining/shared';
 import type { AppConfig } from '../config';
-import type { AuthUser } from '../context';
+import { writeAudit, type AuthUser } from '../context';
 
 interface Claims {
   sub: number;
@@ -40,7 +40,20 @@ export function optionalAuth(config: AppConfig) {
         meta: { role: p.role, username: p.username },
       });
     } catch {
-      /* ignore */
+      logEvent(req.ctx.logger, {
+        event: 'auth.token.forged',
+        reqId: req.ctx.reqId,
+        route: `${req.method} ${req.path}`,
+        srcIp: req.ip,
+        meta: { reason: 'verify_failed' },
+      });
+      void writeAudit(config, {
+        actor: null,
+        event: 'auth.token.forged',
+        route: `${req.method} ${req.path}`,
+        srcIp: req.ip,
+        detail: { reason: 'verify_failed' },
+      });
     }
     next();
   };
@@ -54,18 +67,27 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   next();
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  if (!req.user || req.user.role !== 'admin') {
-    logEvent(req.ctx.logger, {
-      event: 'authz.deny',
-      reqId: req.ctx.reqId,
-      route: `${req.method} ${req.path}`,
-      userId: req.user?.id ?? null,
-      srcIp: req.ip,
-      status: 403,
-    });
-    res.status(403).json({ error: 'admin required' });
-    return;
-  }
-  next();
+export function requireAdmin(config: AppConfig) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user || req.user.role !== 'admin') {
+      logEvent(req.ctx.logger, {
+        event: 'authz.deny',
+        reqId: req.ctx.reqId,
+        route: `${req.method} ${req.path}`,
+        userId: req.user?.id ?? null,
+        srcIp: req.ip,
+        status: 403,
+      });
+      void writeAudit(config, {
+        actor: req.user ? String(req.user.id) : null,
+        event: 'authz.deny',
+        route: `${req.method} ${req.path}`,
+        srcIp: req.ip,
+        detail: { reason: 'admin_required' },
+      });
+      res.status(403).json({ error: 'admin required' });
+      return;
+    }
+    next();
+  };
 }

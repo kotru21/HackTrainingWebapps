@@ -44,7 +44,7 @@ export function createApp(config: AppConfig, logger: Logger): Express {
   app.use(healthRouter());
   app.use(authRouter(config));
   app.use(ticketsRouter());
-  app.use(adminRouter());
+  app.use(adminRouter(config));
   app.use(debugRouter(config));
 
   app.use(errorHandler(config));

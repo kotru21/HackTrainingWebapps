@@ -3,6 +3,7 @@ import type { AppConfig } from '../config';
 import { findUserByUsername, toAuthUser, verifyPassword } from '../services/users';
 import { signToken } from '../middleware/auth';
 import { logEvent } from '@hacktraining/shared';
+import { writeAudit } from '../types';
 
 export function authRouter(config: AppConfig): Router {
   const router = Router();
@@ -26,6 +27,13 @@ export function authRouter(config: AppConfig): Router {
         status: 401,
         meta: { user: username },
       });
+      await writeAudit(config, {
+        actor: username || null,
+        event: 'auth.login.fail',
+        route: 'POST /login',
+        srcIp: req.ip,
+        detail: { user: username },
+      });
       if (req.accepts('html')) {
         res.status(401).render('login', { error: 'Invalid credentials', user: null });
         return;
@@ -44,6 +52,13 @@ export function authRouter(config: AppConfig): Router {
       srcIp: req.ip,
       status: 200,
       meta: { user: authUser.username, role: authUser.role },
+    });
+    await writeAudit(config, {
+      actor: String(authUser.id),
+      event: 'auth.login.ok',
+      route: 'POST /login',
+      srcIp: req.ip,
+      detail: { user: authUser.username, role: authUser.role },
     });
 
     res.cookie(config.jwtCookieName, token, {
@@ -74,6 +89,13 @@ export function authRouter(config: AppConfig): Router {
         status: 401,
         meta: { user: username },
       });
+      await writeAudit(config, {
+        actor: username || null,
+        event: 'auth.login.fail',
+        route: 'POST /api/login',
+        srcIp: req.ip,
+        detail: { user: username },
+      });
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
@@ -87,6 +109,13 @@ export function authRouter(config: AppConfig): Router {
       srcIp: req.ip,
       status: 200,
       meta: { user: authUser.username, role: authUser.role },
+    });
+    await writeAudit(config, {
+      actor: String(authUser.id),
+      event: 'auth.login.ok',
+      route: 'POST /api/login',
+      srcIp: req.ip,
+      detail: { user: authUser.username, role: authUser.role },
     });
     res.cookie(config.jwtCookieName, token, {
       httpOnly: true,

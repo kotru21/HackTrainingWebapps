@@ -163,7 +163,7 @@ export function profileRoutes(config: AppConfig): Router {
     }
   });
 
-  r.get('/api/admin/flag', requireAuth, requireAdmin, async (req, res) => {
+  r.get('/api/admin/flag', requireAuth, requireAdmin(config), async (req, res) => {
     logEvent(req.ctx.logger, {
       event: 'admin.access',
       reqId: req.ctx.reqId,
@@ -175,12 +175,12 @@ export function profileRoutes(config: AppConfig): Router {
     res.json({ flag: config.adminFlag });
   });
 
-  r.get('/api/admin/note', requireAuth, requireAdmin, async (_req, res) => {
+  r.get('/api/admin/note', requireAuth, requireAdmin(config), async (_req, res) => {
     const notes = await query<{ body: string }>('SELECT body FROM admin_notes ORDER BY id');
     res.json({ notes: notes.rows });
   });
 
-  r.get('/admin', requireAuth, requireAdmin, async (req, res) => {
+  r.get('/admin', requireAuth, requireAdmin(config), async (req, res) => {
     const notes = await query<{ body: string }>('SELECT body FROM admin_notes ORDER BY id');
     const comments = await query<{
       body: string;
