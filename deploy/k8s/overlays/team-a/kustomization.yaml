@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: team-a
+resources:
+  - ../../team-template
+images:
+  - name: hacktraining/app2-billing-vulnerable
+    newName: hacktraining/app2-billing-vulnerable
+    newTag: local
+patches:
+  - target:
+      kind: NetworkPolicy
+      name: allow-attacker-to-app-http
+    patch: |-
+      - op: replace
+        path: /spec/ingress/0/from/0/namespaceSelector/matchLabels/team
+        value: b
+  - target:
+      kind: NetworkPolicy
+      name: allow-egress-to-opponent-app
+    patch: |-
+      - op: replace
+        path: /spec/egress/0/to/0/namespaceSelector/matchLabels/team
+        value: b
+  - target:
+      kind: Ingress
+      name: stand
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: team-a.app.hack.local
+      - op: replace
+        path: /spec/rules/1/host
+        value: team-a.ide.hack.local
+  - target:
+      kind: Deployment
+      name: app
+    patch: |-
+      - op: add
+        path: /spec/template/metadata/labels/team
+        value: a
+labels:
+  - pairs:
+      team: a
+    includeSelectors: false

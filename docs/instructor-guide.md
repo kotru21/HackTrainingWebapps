@@ -95,14 +95,25 @@
 
 ```bash
 ./scripts/collect-logs.sh --round 1          # архив логов+аудита+git-diff патчей
-./scripts/swap-roles.sh                       # инвертирует NetworkPolicy, роли, стартует раунд 2
-./scripts/reset-round.sh --team a --app app1  # baseline назад (для каждого стенда)
-./scripts/reset-round.sh --team b --app app1
+./scripts/swap-roles.sh --scoreboard-url http://127.0.0.1:3020
+./scripts/reset-round.sh --team a --app app2  # baseline назад (для каждого стенда)
+./scripts/reset-round.sh --team b --app app2
 ```
 
-`swap-roles.sh` меняет: кто attacker/defender в `rounds`, направление NetworkPolicy (теперь бывшие Blue
-атакуют), сбрасывает tick-счётчик раунда. `reset-round.sh` возвращает уязвимый baseline, чтобы во втором
-раунде уязвимости снова были открыты.
+PowerShell (Windows):
+
+```powershell
+.\scripts\collect-logs.ps1 -Round 1
+.\scripts\swap-roles.ps1 -ScoreboardUrl http://127.0.0.1:3020
+.\scripts\reset-round.ps1 -Team a -App app2
+.\scripts\reset-round.ps1 -Team b -App app2
+```
+
+Подробности флагов скриптов — [`scripts/README.md`](../scripts/README.md).
+
+`swap-roles.sh` меняет: кто attacker/defender в labels/`rounds` (через `POST /api/round/next`),
+направление NetworkPolicy (attacker → defender app HTTP only), пишет `artifacts/round-state.env`.
+`reset-round.sh` возвращает уязвимый baseline (vulnerable image + wipe workspace + rollout), цель < 60 c.
 
 ---
 

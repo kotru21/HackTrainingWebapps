@@ -5,6 +5,18 @@
 привязка к очкам — [`scoring.md`](scoring.md). Материалы раунда лежат в `artifacts/round-<n>-<team>.tar.gz`
 (собирает `collect-logs.sh`).
 
+### Содержимое `artifacts/round-<n>-<team>.tar.gz`
+
+| Путь | Содержание |
+|------|------------|
+| `loki/app.log` | stdout приложения (kubectl logs) |
+| `loki/postgres.log` | statement-логи PG при наличии |
+| `loki/loki-query.json` | срез Loki API (если доступен) |
+| `audit/security_audit.csv` | таблица `security_audit` (без значений флагов в штатных событиях) |
+| `audit/submissions.csv` | сабмиты scoreboard **без** колонки `flag` (vuln_id, points, время) |
+| `git/workspace.diff` | diff патчей Blue из PVC `workspace` |
+| `meta/info.txt` | round/team/labels |
+
 **Общий метод разбора одной атаки (5 шагов):**
 1. На дашборде **Attack timeline** найти всплеск security-событий и время T.
 2. Достать `reqId` ключевого события → собрать всю цепочку запросов атаки по `reqId`.

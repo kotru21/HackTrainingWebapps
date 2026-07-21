@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: platform
+  labels:
+    grafana_datasource: "1"
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki.platform.svc.cluster.local:3100
+        isDefault: true
+        jsonData:
+          maxLines: 1000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-provider
+  namespace: platform
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: hacktraining
+        orgId: 1
+        folder: HackTraining
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards
+---
+# Minimal but valid Grafana dashboard JSON (SPEC §7.4 — five boards)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-attack-timeline
+  namespace: platform
+data:
+  attack-timeline.json: |
+    {
+      "title": "Attack timeline",
+      "uid": "ht-attack-timeline",
+      "timezone": "utc",
+      "schemaVersion": 39,
+      "version": 1,
+      "tags": ["hacktraining", "forensics"],
+      "panels": [
+        {
+          "type": "logs",
+          "title": "Security events",
+          "gridPos": {"h": 16, "w": 24, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [
+            {
+              "expr": "{namespace=~\"team-.*|platform\"} | json | event=~\".+\"",
+              "refId": "A"
+            }
+          ],
+          "datasource": {"type": "loki", "uid": "Loki"}
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-auth-access
+  namespace: platform
+data:
+  auth-access.json: |
+    {
+      "title": "Auth & Access",
+      "uid": "ht-auth-access",
+      "timezone": "utc",
+      "schemaVersion": 39,
+      "version": 1,
+      "tags": ["hacktraining", "auth"],
+      "panels": [
+        {
+          "type": "logs",
+          "title": "auth / authz",
+          "gridPos": {"h": 16, "w": 24, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [
+            {
+              "expr": "{namespace=~\"team-.*\"} | json | event=~\"auth\\\\..*|authz\\\\..*|role\\\\.change\"",
+              "refId": "A"
+            }
+          ],
+          "datasource": {"type": "loki", "uid": "Loki"}
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-injection
+  namespace: platform
+data:
+  injection.json: |
+    {
+      "title": "Injection",
+      "uid": "ht-injection",
+      "timezone": "utc",
+      "schemaVersion": 39,
+      "version": 1,
+      "tags": ["hacktraining", "sqli"],
+      "panels": [
+        {
+          "type": "logs",
+          "title": "sql.error + PG statements",
+          "gridPos": {"h": 16, "w": 24, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [
+            {
+              "expr": "{service=~\"app|postgres\"} |= \"sql.error\" or {service=\"postgres\"} |= \"UNION\"",
+              "refId": "A"
+            }
+          ],
+          "datasource": {"type": "loki", "uid": "Loki"}
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-sla-health
+  namespace: platform
+data:
+  sla-health.json: |
+    {
+      "title": "SLA / Health",
+      "uid": "ht-sla-health",
+      "timezone": "utc",
+      "schemaVersion": 39,
+      "version": 1,
+      "tags": ["hacktraining", "sla"],
+      "panels": [
+        {
+          "type": "logs",
+          "title": "checker SLA samples",
+          "gridPos": {"h": 16, "w": 24, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [
+            {
+              "expr": "{service=\"checker\"} | json | event=\"sla.sample\"",
+              "refId": "A"
+            }
+          ],
+          "datasource": {"type": "loki", "uid": "Loki"}
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-flag-submissions
+  namespace: platform
+data:
+  flag-submissions.json: |
+    {
+      "title": "Flag submissions",
+      "uid": "ht-flag-submissions",
+      "timezone": "utc",
+      "schemaVersion": 39,
+      "version": 1,
+      "tags": ["hacktraining", "scoreboard"],
+      "panels": [
+        {
+          "type": "logs",
+          "title": "flag.submit (fingerprints only)",
+          "gridPos": {"h": 16, "w": 24, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [
+            {
+              "expr": "{service=\"scoreboard\"} | json | event=\"flag.submit\"",
+              "refId": "A"
+            }
+          ],
+          "datasource": {"type": "loki", "uid": "Loki"}
+        }
+      ]
+    }

@@ -116,13 +116,15 @@ allow-list полей, bcrypt+`randomBytes`, SSRF-guard) + `SOLUTION.md` (экс
 
 **Артефакты:**
 
-- `deploy/k8s/base` (namespaces, PSA-лейблы, StorageClass), `team-template` (app+postgres+code-server+
-PVC workspace+Service+NetworkPolicy+ConfigMap/Secret), `overlays/team-a|team-b`, `platform` (скоринг+логи+Grafana).
-- NetworkPolicy: default-deny + разрешения из §3 SPEC; RBAC-роль команды на свой namespace; kubeconfig'и команд.
-- Probes, `resources.limits`, `securityContext` (в reference-оверлеях).
+- `deploy/k8s/base` (namespaces, PSA-лейблы), `team-template` (app+postgres+code-server+
+PVC workspace+Service+NetworkPolicy+ConfigMap/Secret), `overlays/team-a|team-b`, `platform` (скоринг+Loki+Promtail+Grafana).
+- NetworkPolicy: default-deny + разрешения из §3 SPEC (в т.ч. egress к app соперника); RBAC + kubeconfig'и команд.
+- Probes, `resources.limits`, `securityContext` (platform + `overlays/reference-securitycontext-patch.yaml`).
 - Grafana-дашборды (5 шт., §7.4) как provisioning ConfigMap; Loki+Promtail.
+- `scripts/bootstrap-cluster.sh` (+ `.ps1` для kind на Windows), `deploy-team.sh`, `verify-networkpolicy.sh`.
 **Приёмка:** `bootstrap-cluster.sh` на чистом k3s поднимает платформу и обе команды; атакующая команда
 по сети видит только HTTP-порт соперника (проверить, что postgres/code-server/платформа недоступны).
+На Windows — `kubectl kustomize` + kind/Calico; см. `deploy/k8s/README.md`.
 
 ---
 
@@ -132,13 +134,15 @@ PVC workspace+Service+NetworkPolicy+ConfigMap/Secret), `overlays/team-a|team-b`,
 
 **Артефакты:**
 
-- `scripts/bootstrap-cluster.sh`, `deploy-team.sh`, `reset-round.sh`, `swap-roles.sh`, `collect-logs.sh`.
+- `scripts/bootstrap-cluster.sh`, `deploy-team.sh`, `reset-round.sh`, `swap-roles.sh`, `collect-logs.sh`
+  (+ `.ps1` обёртки для Windows).
 - `docs/instructor-guide.md` (роли, тайминг 60–90 мин, подсказки к каждой уязвимости, чек-лист судьи).
 - `docs/forensics.md` (готовые LogQL/SQL-запросы для разбора каждой атаки).
+- `scripts/README.md` — порядок вызова между раундами.
 **Приёмка:**
 - `reset-round.sh` восстанавливает уязвимый baseline < 60 c (проверить: закрытая уязвимость снова открыта).
-- `swap-roles.sh` меняет направление NetworkPolicy и роли; scoreboard стартует новый раунд.
-- `collect-logs.sh` формирует `artifacts/round-<n>-<team>.tar.gz` с логами Loki + `security_audit` + git-diff патчей.
+- `swap-roles.sh` меняет направление NetworkPolicy и роли; scoreboard стартует новый раунд (`POST /api/round/next`).
+- `collect-logs.sh` формирует `artifacts/round-<n>-<team>.tar.gz` с логами Loki/pod + `security_audit` + git-diff патчей.
 
 ---
 

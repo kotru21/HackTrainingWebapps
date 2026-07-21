@@ -1,0 +1,11 @@
+# ClusterRole usable to mint per-team kubeconfigs (namespace Role lives in team-template)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hacktraining-team-operator
+  labels:
+    app.kubernetes.io/part-of: hacktraining
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]

@@ -1,0 +1,23 @@
+# kind (and some managed clusters) use StorageClass "standard" instead of k3s local-path
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ../../platform
+  - ../team-a
+  - ../team-b
+  - ../round-roles.yaml
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: standard
+  - target:
+      kind: StatefulSet
+      name: scoreboard-pg
+    patch: |-
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+        value: standard

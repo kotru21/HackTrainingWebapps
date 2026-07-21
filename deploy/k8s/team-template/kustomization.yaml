@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - rbac.yaml
+  - pvc.yaml
+  - config-secret.yaml
+  - postgres-logging-configmap.yaml
+  - postgres.yaml
+  - app.yaml
+  - code-server.yaml
+  - networkpolicy.yaml
+  - ingress.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: hacktraining
+    includeSelectors: false

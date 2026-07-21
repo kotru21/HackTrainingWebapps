@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: platform
+resources:
+  - scoreboard-config.yaml
+  - scoreboard-pg.yaml
+  - scoreboard.yaml
+  - flag-planter.yaml
+  - checker.yaml
+  - internal-metadata.yaml
+  - networkpolicy.yaml
+  - networkpolicy-promtail.yaml
+  - loki.yaml
+  - promtail.yaml
+  - grafana-dashboards.yaml
+  - grafana.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: hacktraining
+    includeSelectors: false

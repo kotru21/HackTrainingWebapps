@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: internal-metadata
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: internal-metadata
+    service: internal-metadata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: internal-metadata
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: internal-metadata
+        service: internal-metadata
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: metadata
+          image: hacktraining/internal-metadata:local
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: PORT
+              value: "3099"
+            - name: HOST
+              value: "0.0.0.0"
+            # INTENTIONALLY WEAK — training only
+            - name: METADATA_PLANT_TOKEN
+              value: metadata-plant-token
+            - name: SSRF_FLAG
+              value: TRN{a2066666666666666666666666666666}
+          ports:
+            - name: http
+              containerPort: 3099
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: internal-metadata
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: internal-metadata
+spec:
+  selector:
+    app.kubernetes.io/name: internal-metadata
+  ports:
+    - name: http
+      port: 3099
+      targetPort: http

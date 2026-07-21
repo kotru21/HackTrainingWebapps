@@ -1,0 +1,38 @@
+# Base cluster scaffolding — namespaces + PSA (SPEC §8.1 / Phase 6)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform
+  labels:
+    app.kubernetes.io/part-of: hacktraining
+    # baseline: Promtail DaemonSet needs hostPath (SPEC prefers restricted for app pods —
+    # platform Deployments still use runAsNonRoot + drop ALL).
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    name: platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    app.kubernetes.io/part-of: hacktraining
+    team: a
+    # baseline — vulnerable stands may violate restricted (V1.8)
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline
+    name: team-a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+  labels:
+    app.kubernetes.io/part-of: hacktraining
+    team: b
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline
+    name: team-b

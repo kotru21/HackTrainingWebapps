@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checker
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: checker
+    service: checker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: checker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: checker
+        service: checker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: checker
+          image: hacktraining/checker:local
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: HEALTH_PORT
+              value: "3022"
+            - name: SCOREBOARD_URL
+              value: http://scoreboard.platform.svc.cluster.local
+            - name: SCOREBOARD_CONFIG
+              value: /config/config.yaml
+            - name: STARTUP_DELAY_MS
+              value: "35000"
+            - name: CHECKER_TIMEOUT_MS
+              value: "8000"
+          ports:
+            - name: health
+              containerPort: 3022
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: scoreboard-config
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checker
+  namespace: platform
+spec:
+  selector:
+    app.kubernetes.io/name: checker
+  ports:
+    - name: health
+      port: 3022
+      targetPort: health

@@ -1,0 +1,14 @@
+# Document expected StorageClass (k3s ships local-path; kind often has standard)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-defaults
+  namespace: platform
+  labels:
+    app.kubernetes.io/part-of: hacktraining
+data:
+  storageClassName: local-path
+  notes: |
+    On k3s use StorageClass local-path (default).
+    On kind, bootstrap may patch PVC storageClassName to standard.
+    ingressClassName must be nginx (Traefik disabled).

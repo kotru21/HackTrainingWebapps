@@ -1,0 +1,13 @@
+# Promtail → Loki + API / hostPath log scrape
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-promtail-egress
+  namespace: platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: promtail
+  policyTypes: ["Egress"]
+  egress:
+    - {} # DaemonSet needs broad egress for node log paths + Loki
