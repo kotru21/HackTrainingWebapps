@@ -150,9 +150,9 @@ PVC workspace+Service+NetworkPolicy+ConfigMap/Secret), `overlays/team-a|team-b`,
 
 ## Фаза 8 — Приёмочное тестирование и полировка
 
-**Артефакты:** сквозной прогон полного раунда на k3s двумя «командами»; smoke-скрипт, гоняющий все PoC
-против обоих вариантов; финальная вычитка `SOLUTION.md` и `instructor-guide.md`.
-**Приёмка:** выполнены все пункты Definition of Done из §11 SPEC.
+**Артефакты:** сквозной smoke всех PoC (`scripts/phase8-smoke.sh` / `.ps1` → `artifacts/phase8-smoke-report.*`);
+финальная вычитка `SOLUTION.md` и `instructor-guide.md`; сводка DoD — `docs/DOD.md`.
+**Приёмка:** выполнены все пункты Definition of Done из §11 SPEC (чекбоксы + доказательства в `docs/DOD.md`).
 
 ---
 

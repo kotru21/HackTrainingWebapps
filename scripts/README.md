@@ -7,6 +7,8 @@
 | `reset-round.sh` / `.ps1` | Restore vulnerable baseline (<60s) |
 | `swap-roles.sh` / `.ps1` | Flip defender/attacker NetPol + `POST /api/round/next` |
 | `collect-logs.sh` / `.ps1` | `artifacts/round-<n>-<team>.tar.gz` |
+| `phase8-smoke.sh` / `.ps1` | Full PoC matrix (Phase 8) → `artifacts/phase8-smoke-report.*` |
+| `check-app1-identical-src.sh` / `.ps1` | Enforce single shared app1 `src/` |
 | `verify-networkpolicy.sh` | Attacker isolation check |
 
 ## Typical round end (Linux / Git Bash)

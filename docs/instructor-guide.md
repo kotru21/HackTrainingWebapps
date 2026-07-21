@@ -140,3 +140,27 @@ PowerShell (Windows):
 | Red не может сдать флаг | истёк TTL / чужой токен / троттлинг | проверить свежесть флага и `X-Team-Token`; 429 = подождать |
 | Флаги не появляются | planter не видит стенд | проверить NetworkPolicy platform→team и логи planter |
 | Grafana пустая | Promtail не собирает | проверить DaemonSet Promtail и лейблы подов |
+
+---
+
+## 9. Приёмочный smoke (Фаза 8)
+
+Перед тренингом (или после крупных правок) прогоните матрицу PoC:
+
+```bash
+# compose.dev.yml должен быть поднят
+./scripts/phase8-smoke.sh
+# PowerShell:
+.\scripts\phase8-smoke.ps1
+```
+
+Ожидание: **все** атаки PASS на vulnerable и FAIL на reference; SLA PASS на обоих;
+scoring e2e PASS. Отчёт: `artifacts/phase8-smoke-report.md`.
+
+Проверка инварианта app1 (один `src/`):
+
+```bash
+./scripts/check-app1-identical-src.sh
+# PowerShell:
+.\scripts\check-app1-identical-src.ps1
+```

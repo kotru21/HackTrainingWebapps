@@ -17,6 +17,9 @@ node tools/attacker-scripts/app2/sla-smoke.mjs --base http://127.0.0.1:3012
 node tools/attacker-scripts/app2/ssrf.mjs --base http://127.0.0.1:3011 --metadata http://internal-metadata:3099/flag
 node tools/attacker-scripts/phase4-e2e.mjs --scoreboard http://127.0.0.1:3020 --base http://127.0.0.1:3011
 
+# Phase 8 full matrix (vuln PASS / ref FAIL / SLA both)
+.\scripts\phase8-smoke.ps1
+
 # Scoreboard UI
 # http://127.0.0.1:3020/
 

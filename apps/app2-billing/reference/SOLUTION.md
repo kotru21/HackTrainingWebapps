@@ -84,5 +84,8 @@ node tools/attacker-scripts/app2/crypto-reset.mjs --base http://127.0.0.1:3011
 - **Логи:** `upload.url.fetch` (vuln) / `ssrf.blocked` (ref)
 
 ```bash
+# Local / host-run app:
 node tools/attacker-scripts/app2/ssrf.mjs --base http://127.0.0.1:3011 --metadata http://127.0.0.1:3099/flag
+# Compose: fetch runs inside app container — use service DNS:
+node tools/attacker-scripts/app2/ssrf.mjs --base http://127.0.0.1:3011 --metadata http://internal-metadata:3099/flag
 ```

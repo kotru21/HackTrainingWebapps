@@ -66,6 +66,10 @@ node tools/attacker-scripts/app1/debug-leak.mjs --base http://127.0.0.1:3001
 - **Фикс:** сильный `SEED_ADMIN_PASSWORD` + пересев
 - **Логи:** `auth.login.ok` для `admin` с внешнего IP
 
+```bash
+node tools/attacker-scripts/app1/default-admin.mjs --base http://127.0.0.1:3001
+```
+
 ---
 
 ## V1.6 Security headers off — `CFG-LEAK`
