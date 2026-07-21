@@ -5,6 +5,7 @@ import type { ScoreboardConfig } from './config';
 import { tokenToTeam } from './config';
 import { checkRateLimit, submitFlag } from './submit';
 import {
+  bumpTick,
   computeScores,
   ensureRound,
   getActiveRound,
@@ -188,7 +189,6 @@ export function createApp(pool: Pool, cfg: ScoreboardConfig): express.Express {
       return;
     }
     const round = await ensureRound(pool, Object.keys(cfg.team_tokens));
-    const { bumpTick } = await import('./scoring');
     const updated = await bumpTick(pool);
     res.json({ current_tick: updated.current_tick, round_n: round.n });
   });
