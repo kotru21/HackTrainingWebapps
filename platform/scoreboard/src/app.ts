@@ -138,7 +138,7 @@ export function createApp(pool: Pool, cfg: ScoreboardConfig): express.Express {
     });
   });
 
-  /** Internal: planter/checker register planted flags / SLA samples */
+  /** Внутреннее: planter/checker регистрируют выданные флаги / SLA-замеры */
   app.post('/api/internal/plant', async (req, res) => {
     const token = req.header('X-Judge-Token');
     if (token !== cfg.judge_token) {
@@ -244,7 +244,9 @@ const BOARD_HTML = `<!DOCTYPE html>
       border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
     .panel h2{margin:0;padding:14px 18px;font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
       color:var(--muted);border-bottom:1px solid var(--border)}
-    .row{display:grid;grid-template-columns:42px 1fr 74px 74px minmax(128px,1.15fr) auto;align-items:center;
+    /* Одинаковые фиксированные треки во всех строках → колонки ATK/DEF/Total выровнены.
+       Total фиксированной ширины (не auto), иначе большое число сдвигало бы соседние колонки. */
+    .row{display:grid;grid-template-columns:42px minmax(0,1fr) 84px 84px minmax(120px,1.2fr) 132px;align-items:center;
       gap:clamp(8px,1.4vw,18px);padding:15px 18px;border-bottom:1px solid var(--border);transition:background .25s ease}
     .row:last-child{border-bottom:0}
     .row.head{padding:9px 18px;font-size:.66rem;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
@@ -252,7 +254,6 @@ const BOARD_HTML = `<!DOCTYPE html>
     .rank{font-family:var(--mono);font-weight:700;font-size:1.05rem;color:var(--muted);text-align:center}
     .row.lead .rank{color:var(--ok)}
     .team{display:flex;align-items:center;gap:11px;min-width:0}
-    .swatch{width:12px;height:12px;border-radius:4px;flex:0 0 auto;background:var(--tc);box-shadow:0 0 12px var(--tc)}
     .tname{font-weight:700;font-size:1.06rem;text-transform:uppercase;letter-spacing:.04em;color:var(--tc);
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .col{font-family:var(--mono);font-size:1rem;text-align:right}
@@ -346,7 +347,7 @@ const BOARD_HTML = `<!DOCTYPE html>
         prevTotals[t.team] = t.total;
         return '<div class="row' + lead + changed + '" style="--tc:' + tc + '">'
           + '<div class="rank">' + (i + 1) + '</div>'
-          + '<div class="team"><span class="swatch"></span><span class="tname">' + esc(t.team) + '</span></div>'
+          + '<div class="team"><span class="tname">' + esc(t.team) + '</span></div>'
           + '<div class="col atk">' + fmt(t.attack) + '</div>'
           + '<div class="col def">' + fmt(t.defense) + '</div>'
           + '<div class="sla"><div class="meter"><span style="width:' + sla + '%;background:' + slaColor(sla) + '"></span></div>'
@@ -367,8 +368,9 @@ const BOARD_HTML = `<!DOCTYPE html>
 
       document.getElementById('sub').textContent = 'updated ' + new Date().toLocaleTimeString();
     }
+    // Реалтайм-обновление табло: опрос /api/scoreboard каждые 3 секунды
     refresh();
-    setInterval(refresh, 5000);
+    setInterval(refresh, 3000);
   </script>
 </body>
 </html>
