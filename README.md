@@ -40,7 +40,12 @@ docker compose -f deploy/docker/compose.dev.yml up --build
 
 - [`docs/SPEC.md`](docs/SPEC.md) — полная техническая спецификация (архитектура, уязвимости, скоринг, логи, деплой).
 - [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md) — пофазный план реализации с критериями приёмки (для кодинг-агента).
-- `docs/instructor-guide.md` — сценарий проведения, роли, тайминг раундов.
-- `apps/*/reference/SOLUTION.md` — разбор эксплуатации и защиты по каждой уязвимости.
+- [`docs/scoring.md`](docs/scoring.md) — модель очков, контракт API scoreboard, `config.yaml`.
+- [`docs/instructor-guide.md`](docs/instructor-guide.md) — сценарий проведения, роли, тайминг, подсказки, чек-лист судьи.
+- [`docs/forensics.md`](docs/forensics.md) — готовые LogQL/SQL-запросы для разбора атак.
+- [`docs/cursor-setup.md`](docs/cursor-setup.md) — настройка Cursor, project rules, референс-репозитории.
+- [`docs/GROK-PROMPT.md`](docs/GROK-PROMPT.md) — готовый промпт для запуска реализации в Cursor/Grok 4.5.
+- `.cursor/rules/*.mdc` — инварианты проекта, которые агент соблюдает автоматически.
+- `apps/*/reference/SOLUTION.md` — разбор эксплуатации и защиты по каждой уязвимости (создаётся вместе с кодом).
 
 > ⚠️ Все уязвимости внесены намеренно и только для обучения в изолированной сети. Не разворачивать в интернете.
