@@ -5,10 +5,10 @@
   "description": "Config overlay — vulnerable dependency pin (V1.2 ejs@3.1.6 CVE-2022-29078)",
   "dependencies": {
     "@hacktraining/shared": "0.0.1",
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
+    "dotenv": "^17.2.3",
     "ejs": "3.1.6",
     "express": "^4.21.2",
     "helmet": "^8.1.0",
