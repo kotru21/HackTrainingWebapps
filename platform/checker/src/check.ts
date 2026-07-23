@@ -157,6 +157,39 @@ export async function checkHelpdesk(
         detail: { step: 'login_page', http: loginPage.status },
       };
     }
+
+    // Functional flow: a normal seed user must still be able to log in and list tickets.
+    // This is what turns a broken defender fix into an SLA penalty — if a patch damages
+    // auth or the tickets API, these steps fail and the tick is scored 'mumble' (not up).
+    // 'alice'/'user123' is an ordinary seed account (not a vuln to close), so it stays
+    // stable across legitimate fixes.
+    const login = await fetchJson(`${base}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'alice', password: 'user123' }),
+      timeoutMs,
+    });
+    const token = (login.body as { token?: string } | null)?.token;
+    if (!login.ok || !token) {
+      return {
+        status: 'mumble',
+        latency_ms: Date.now() - started,
+        detail: { step: 'login', http: login.status },
+      };
+    }
+
+    const tickets = await fetchJson(`${base}/api/tickets`, {
+      headers: { Authorization: `Bearer ${token}` },
+      timeoutMs,
+    });
+    if (!tickets.ok) {
+      return {
+        status: 'mumble',
+        latency_ms: Date.now() - started,
+        detail: { step: 'tickets', http: tickets.status },
+      };
+    }
+
     return {
       status: 'up',
       latency_ms: Date.now() - started,

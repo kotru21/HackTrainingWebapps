@@ -299,6 +299,20 @@ const BOARD_HTML = `<!DOCTYPE html>
     li.empty,.empty{padding:26px 18px;text-align:center;color:var(--faint);border-bottom:0}
     ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:8px}
     @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+    .submit{max-width:1300px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(16px,3vw,28px) 0}
+    .submitcard{background:linear-gradient(180deg,var(--surface),rgba(11,18,32,.55));border:1px solid var(--border);
+      border-radius:var(--r);padding:14px 18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .submitcard h2{margin:0 auto 0 0;padding:0;border:0;font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+    .submitcard input{font-family:var(--mono);font-size:.9rem;padding:9px 12px;border-radius:9px;
+      border:1px solid var(--border-2);background:var(--surface-2);color:var(--fg);min-width:0}
+    .submitcard input#flag{flex:1 1 260px}
+    .submitcard input#token{flex:0 1 160px}
+    .submitcard button{font-family:var(--sans);font-weight:700;font-size:.85rem;padding:9px 18px;border-radius:9px;
+      border:1px solid var(--ok);background:rgba(34,197,94,.14);color:var(--ok);cursor:pointer;white-space:nowrap}
+    .submitcard button:hover{background:rgba(34,197,94,.24)}
+    .submitcard button:disabled{opacity:.5;cursor:default}
+    .smsg{font-family:var(--mono);font-size:.82rem;flex:1 1 100%;min-height:1.1em;color:var(--muted)}
+    .smsg.ok{color:var(--ok)} .smsg.bad{color:var(--bad)} .smsg.warn{color:var(--warn)}
   </style>
 </head>
 <body>
@@ -310,6 +324,15 @@ const BOARD_HTML = `<!DOCTYPE html>
     <div class="chip"><span class="k">round</span><span id="roundInfo">—</span></div>
     <div class="chip"><span class="dot" id="liveDot"></span><span id="liveTxt">LIVE</span></div>
   </header>
+  <section class="submit">
+    <form class="submitcard" id="submitForm" autocomplete="off">
+      <h2>Submit flag</h2>
+      <input id="token" type="password" placeholder="team token" aria-label="team token" />
+      <input id="flag" type="text" placeholder="TRN{…}" aria-label="flag" />
+      <button type="submit" id="submitBtn">Submit</button>
+      <div class="smsg" id="smsg" aria-live="polite"></div>
+    </form>
+  </section>
   <main>
     <section class="panel" aria-label="Leaderboard">
       <h2>Leaderboard</h2>
@@ -385,6 +408,38 @@ const BOARD_HTML = `<!DOCTYPE html>
 
       document.getElementById('sub').textContent = 'updated ' + new Date().toLocaleTimeString();
     }
+    // Сдача флага прямо с табло: POST /api/submit с токеном команды в заголовке
+    var sf = document.getElementById('submitForm');
+    if (sf) sf.addEventListener('submit', async function(e){
+      e.preventDefault();
+      var btn = document.getElementById('submitBtn');
+      var msg = document.getElementById('smsg');
+      var token = document.getElementById('token').value.trim();
+      var flag = document.getElementById('flag').value.trim();
+      if (!token || !flag){ msg.className = 'smsg warn'; msg.textContent = 'enter team token and flag'; return; }
+      btn.disabled = true; msg.className = 'smsg'; msg.textContent = 'submitting…';
+      try {
+        var res = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Team-Token': token },
+          body: JSON.stringify({ flag: flag }),
+        });
+        var d = await res.json();
+        var st = d.status || 'error';
+        if (st === 'accepted'){
+          msg.className = 'smsg ok';
+          msg.textContent = '✓ accepted  +' + fmt(d.points || 0)
+            + (d.vuln_id ? '  ' + d.vuln_id : '') + (d.first_blood ? '  · first blood!' : '');
+          document.getElementById('flag').value = '';
+          refresh();
+        } else {
+          var soft = st === 'duplicate' || st === 'expired' || st === 'own_flag' || st === 'rate_limited';
+          msg.className = 'smsg ' + (soft ? 'warn' : 'bad');
+          msg.textContent = '✗ ' + esc(st);
+        }
+      } catch (err) { msg.className = 'smsg bad'; msg.textContent = 'network error'; }
+      btn.disabled = false;
+    });
     // Реалтайм-обновление табло: опрос /api/scoreboard каждые 3 секунды
     refresh();
     setInterval(refresh, 3000);

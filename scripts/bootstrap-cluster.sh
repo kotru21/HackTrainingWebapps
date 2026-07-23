@@ -24,6 +24,36 @@ fi
 
 echo "==> HackTraining bootstrap (app=$APP storageClass=$STORAGE_CLASS)"
 
+# --- Credentials (generated once, reused on re-runs) ---------------------------------
+# Replace the built-in weak training values with short, easy-to-type random ones and hand
+# them to the organizer at the end. Persisted to artifacts/credentials.env so idempotent
+# re-runs (or a second --app round) keep the SAME creds instead of rotating mid-game.
+# Set GEN_CREDS=0 to keep the manifest defaults (e.g. quick throwaway bring-up).
+GEN_CREDS="${GEN_CREDS:-1}"
+CREDS_FILE="${CREDS_FILE:-$ROOT/artifacts/credentials.env}"
+if [[ "$GEN_CREDS" == "1" ]]; then
+  if [[ -f "$CREDS_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$CREDS_FILE"
+    echo "==> Reusing credentials from $CREDS_FILE"
+  else
+    gen() { tr -dc 'a-hj-km-np-z2-9' </dev/urandom | head -c "${1:-8}"; }  # no look-alikes (0/o/1/l/i)
+    TEAM_A_TOKEN="$(gen 8)"; TEAM_B_TOKEN="$(gen 8)"; JUDGE_TOKEN="$(gen 10)"
+    IDE_A_PASS="$(gen 8)"; IDE_B_PASS="$(gen 8)"; GRAFANA_PASS="$(gen 8)"
+    mkdir -p "$(dirname "$CREDS_FILE")"
+    cat >"$CREDS_FILE" <<EOF
+TEAM_A_TOKEN=$TEAM_A_TOKEN
+TEAM_B_TOKEN=$TEAM_B_TOKEN
+JUDGE_TOKEN=$JUDGE_TOKEN
+IDE_A_PASS=$IDE_A_PASS
+IDE_B_PASS=$IDE_B_PASS
+GRAFANA_PASS=$GRAFANA_PASS
+EOF
+    chmod 600 "$CREDS_FILE"
+    echo "==> Generated fresh credentials → $CREDS_FILE"
+  fi
+fi
+
 kubectl get ns >/dev/null
 
 # ingress-nginx (skip if present)
@@ -82,6 +112,25 @@ else
   kubectl apply -k "$K8S/overlays/team-b"
 fi
 
+# --- Inject generated credentials over the weak training defaults --------------------
+# Done after every apply above (the app-specific ConfigMap re-introduces placeholders),
+# so a re-run always re-lands the same reused creds. team/judge tokens live in the
+# scoreboard ConfigMap (read by scoreboard, checker AND planter — one source, stays
+# consistent); IDE and Grafana passwords are plain Deployment env. metadata_plant_token
+# and DB passwords are internal-only and left untouched.
+if [[ "$GEN_CREDS" == "1" ]]; then
+  echo "==> Injecting generated credentials"
+  kubectl -n platform get configmap scoreboard-config -o yaml \
+    | sed -e "s/team-a-token/${TEAM_A_TOKEN}/g" \
+          -e "s/team-b-token/${TEAM_B_TOKEN}/g" \
+          -e "s/judge-token/${JUDGE_TOKEN}/g" \
+    | kubectl apply -f - >/dev/null
+  kubectl -n platform rollout restart deploy/scoreboard deploy/checker deploy/flag-planter 2>/dev/null || true
+  kubectl -n team-a set env deploy/code-server PASSWORD="${IDE_A_PASS}" 2>/dev/null || true
+  kubectl -n team-b set env deploy/code-server PASSWORD="${IDE_B_PASS}" 2>/dev/null || true
+  kubectl -n platform set env deploy/grafana GF_SECURITY_ADMIN_PASSWORD="${GRAFANA_PASS}" 2>/dev/null || true
+fi
+
 # Patch storage class if not local-path (e.g. kind)
 if [[ "$STORAGE_CLASS" != "local-path" ]]; then
   echo "==> Patching PVC storageClassName → $STORAGE_CLASS"
@@ -134,3 +183,19 @@ echo "==> Bootstrap complete"
 echo "Hosts (add to /etc/hosts → ingress IP):"
 echo "  scoreboard.hack.local grafana.hack.local team-a.app.hack.local team-b.app.hack.local"
 echo "Verify NetworkPolicy: scripts/verify-networkpolicy.sh"
+
+if [[ "$GEN_CREDS" == "1" ]]; then
+  cat <<EOF
+
+======================= ORGANIZER CREDENTIALS (distribute) =======================
+  Team A  flag token : ${TEAM_A_TOKEN}      IDE (team-a.ide.hack.local): ${IDE_A_PASS}
+  Team B  flag token : ${TEAM_B_TOKEN}      IDE (team-b.ide.hack.local): ${IDE_B_PASS}
+  Judge   token      : ${JUDGE_TOKEN}
+  Grafana admin      : admin / ${GRAFANA_PASS}   (grafana.hack.local)
+----------------------------------------------------------------------------------
+  Team tokens go to each captain (used on the scoreboard "Submit flag" form).
+  Judge token stays with the judge. Saved to: ${CREDS_FILE}
+  Re-runs reuse these; delete the file (or set GEN_CREDS=0) to change this behaviour.
+==================================================================================
+EOF
+fi
