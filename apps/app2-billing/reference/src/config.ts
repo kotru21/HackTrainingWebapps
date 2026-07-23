@@ -7,7 +7,6 @@ export interface AppConfig {
   databaseUrl: string;
   jwtSecret: string;
   jwtCookieName: string;
-  adminFlag: string;
   viewsDir: string;
   publicDir: string;
   sharedPublicDir: string;
@@ -19,16 +18,23 @@ const WEAK_SECRETS = new Set(['', 'change-me', 'secret', 'billing-secret', 'bill
 export function loadConfig(): AppConfig {
   const root = path.join(__dirname, '..');
   const sharedRoot = path.join(root, '..', 'shared');
+  const teamRaw = process.env.TEAM;
+  const team = (teamRaw ?? '').trim();
+  // SSRF flag delivery depends on X-Stand-Team = TEAM; refuse empty/unset.
+  if (!team) {
+    throw new Error(
+      'TEAM is required (empty/unset). SSRF metadata flags are keyed by stand TEAM.',
+    );
+  }
   const cfg: AppConfig = {
     port: Number(process.env.PORT ?? '3012'),
-    team: process.env.TEAM ?? 'dev',
+    team,
     nodeEnv: process.env.NODE_ENV ?? 'development',
     databaseUrl:
       process.env.DATABASE_URL ??
       'postgres://billing:billing@127.0.0.1:5434/billing',
     jwtSecret: process.env.JWT_SECRET ?? 'billing-secret',
     jwtCookieName: process.env.JWT_COOKIE_NAME ?? 'bill_token',
-    adminFlag: process.env.ADMIN_FLAG ?? 'TRN{a2044444444444444444444444444444}',
     viewsDir: path.join(root, 'views'),
     publicDir: path.join(root, 'public'),
     sharedPublicDir: path.join(sharedRoot, 'public'),

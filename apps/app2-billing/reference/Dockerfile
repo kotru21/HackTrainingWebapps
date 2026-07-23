@@ -34,8 +34,7 @@ WORKDIR /apps/app2-billing/reference
 ENV NODE_ENV=production \
     PORT=3012 \
     TEAM=b \
-    JWT_SECRET=billing-ref-8f2c1e9a7b3d5f60a1b2c3d4e5f60718a9c \
-    ADMIN_FLAG=TRN{a2044444444444444444444444444444}
+    JWT_SECRET=billing-ref-8f2c1e9a7b3d5f60a1b2c3d4e5f60718a9c
 
 EXPOSE 3012
 CMD ["node", "dist/index.js"]

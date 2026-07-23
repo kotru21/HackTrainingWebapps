@@ -130,6 +130,19 @@ if (!skipApp2) {
       group: 'app2-ref',
     });
   }
+  // Reference must block k8s FQDN as well as short DNS name (ClusterIP is private).
+  cases.push({
+    id: 'V2.6-ssrf-fqdn',
+    script: 'app2/ssrf.mjs',
+    args: [
+      '--base',
+      bases.app2Ref,
+      '--metadata',
+      'http://internal-metadata.platform.svc.cluster.local:3099/flag',
+    ],
+    expect: 'fail',
+    group: 'app2-ref',
+  });
 }
 
 if (!skipSla) {

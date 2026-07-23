@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { logEvent } from '@hacktraining/shared';
 import type { AppConfig } from '../config';
@@ -8,14 +9,17 @@ import { requireAuth, requireAdmin } from '../middleware/auth';
 
 const PROFILE_ALLOW = new Set(['display_name', 'avatar_url', 'bio']);
 
-function isPrivateHostnameOrIp(host: string): boolean {
-  const h = host.toLowerCase();
-  if (h === 'localhost' || h.endsWith('.localhost') || h === 'internal-metadata') return true;
-  if (h === 'metadata.google.internal' || h === '169.254.169.254') return true;
-  const ip = isIP(h) ? h : null;
-  if (!ip) return false;
-  if (ip === '127.0.0.1' || ip === '::1') return true;
+/** Allowed URL schemes for avatar fetch (SSRF-guard). */
+const AVATAR_SCHEMES = new Set(['http:', 'https:']);
+
+function isPrivateIp(ip: string): boolean {
+  const v = isIP(ip);
+  if (!v) return false;
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0') return true;
   if (ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('169.254.')) return true;
+  if (ip.toLowerCase().startsWith('fc') || ip.toLowerCase().startsWith('fd') || ip.toLowerCase().startsWith('fe80')) {
+    return true;
+  }
   const m = /^172\.(\d+)\./.exec(ip);
   if (m) {
     const n = Number(m[1]);
@@ -24,7 +28,11 @@ function isPrivateHostnameOrIp(host: string): boolean {
   return false;
 }
 
-/** V2.6 SSRF-guard */
+/**
+ * V2.6 SSRF-guard: scheme allow-list + resolve host→all IPs and reject any private range.
+ * Blocks DNS-rebinding to ClusterIP / loopback (incl. FQDN
+ * internal-metadata.platform.svc.cluster.local). Redirects rejected at fetch time.
+ */
 async function assertSafeAvatarUrl(raw: string): Promise<URL> {
   let url: URL;
   try {
@@ -32,11 +40,26 @@ async function assertSafeAvatarUrl(raw: string): Promise<URL> {
   } catch {
     throw new Error('invalid url');
   }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+  if (!AVATAR_SCHEMES.has(url.protocol)) {
     throw new Error('scheme not allowed');
   }
-  if (isPrivateHostnameOrIp(url.hostname)) {
+  const host = url.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.localhost')) {
     throw new Error('host not allowed');
+  }
+  if (isIP(host)) {
+    if (isPrivateIp(host)) throw new Error('host not allowed');
+    return url;
+  }
+  let addrs: Array<{ address: string }>;
+  try {
+    addrs = await lookup(host, { all: true });
+  } catch {
+    throw new Error('host not allowed');
+  }
+  if (addrs.length === 0) throw new Error('host not allowed');
+  for (const { address } of addrs) {
+    if (isPrivateIp(address)) throw new Error('host not allowed');
   }
   return url;
 }

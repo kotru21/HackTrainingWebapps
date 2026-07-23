@@ -1,9 +1,17 @@
 import { createLogger } from '@hacktraining/shared';
 import { loadPlanterConfig } from './config';
 import { startHealthServer } from './health';
-import { runTick } from './plant';
+import { closePlantPools, runTick } from './plant';
 
 const log = createLogger({ service: 'flag-planter', team: 'platform' });
+
+async function shutdown(): Promise<void> {
+  try {
+    await closePlantPools();
+  } catch (err) {
+    log.warn({ err, event: 'shutdown.pools' }, 'error closing plant pools');
+  }
+}
 
 async function main(): Promise<void> {
   const once = process.argv.includes('--once');
@@ -20,7 +28,10 @@ async function main(): Promise<void> {
       log.info({ event: 'tick.done', tick: n }, 'planter tick complete');
     } catch (err) {
       log.error({ err, event: 'tick.fail' }, 'planter tick failed');
-      if (once) process.exit(1);
+      if (once) {
+        await shutdown();
+        process.exit(1);
+      }
     }
   };
 
@@ -31,11 +42,20 @@ async function main(): Promise<void> {
   }
 
   await tick();
-  if (once) return;
+  if (once) {
+    await shutdown();
+    return;
+  }
 
   setInterval(() => {
     void tick();
   }, cfg.tick_seconds * 1000);
+
+  const onSignal = (): void => {
+    void shutdown().finally(() => process.exit(0));
+  };
+  process.on('SIGTERM', onSignal);
+  process.on('SIGINT', onSignal);
 
   log.info(
     { event: 'bootstrap', tick_seconds: cfg.tick_seconds },
@@ -43,7 +63,8 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   log.error({ err }, 'flag-planter failed');
+  await shutdown();
   process.exit(1);
 });

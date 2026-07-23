@@ -2,8 +2,9 @@
 /**
  * Internal metadata SSRF target.
  * Holds per-team planted TRN flags; plant via POST /plant with X-Plant-Token.
- * GET /flag selects the flag by X-Stand-Team (set by the stand on outbound fetch),
- * ?team=, or /flag/:team. Does not log flag values in cleartext.
+ * GET /flag selects the flag ONLY by trusted header X-Stand-Team (set by the stand
+ * on outbound fetch to this host). Query/path team selectors are ignored.
+ * Does not log flag values in cleartext.
  */
 import http from 'node:http';
 
@@ -31,13 +32,10 @@ function readBody(req) {
   });
 }
 
-function resolveTeam(req, url) {
+/** Team comes only from X-Stand-Team — ignore ?team= and /flag/:team. */
+function resolveTeam(req) {
   const header = req.headers['x-stand-team'];
   if (typeof header === 'string' && header.trim()) return header.trim();
-  const q = url.searchParams.get('team');
-  if (q) return q;
-  const pathMatch = url.pathname.match(/^\/flag\/([^/]+)\/?$/);
-  if (pathMatch) return pathMatch[1];
   return null;
 }
 
@@ -89,7 +87,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === '/flag' || url.pathname === '/' || /^\/flag\/[^/]+\/?$/.test(url.pathname)) {
-    const team = resolveTeam(req, url) ?? seedTeam;
+    const team = resolveTeam(req) ?? seedTeam;
     const flag = flagsByTeam.get(team);
     if (!flag) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });

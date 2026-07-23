@@ -63,6 +63,10 @@ export async function bumpTick(pool: Pool): Promise<RoundRow> {
 }
 
 export async function nextRound(pool: Pool): Promise<RoundRow> {
+  // Snapshot active round *before* the lock so concurrent callers that both saw
+  // the same round N can detect that another advance already moved to N+1.
+  const snapshot = await getActiveRound(pool);
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -70,14 +74,16 @@ export async function nextRound(pool: Pool): Promise<RoundRow> {
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['round:next']);
 
     const cur = await getActiveRound(client);
-    // Idempotent: a duplicate next that lands right after another advance must not
-    // create a second successor (criterion: exactly one new round, no 500).
-    if (cur && cur.current_tick === 0) {
-      const ageMs = Date.now() - new Date(cur.started_at).getTime();
-      if (ageMs < 3000) {
-        await client.query('COMMIT');
-        return cur;
-      }
+
+    // Idempotent: if the active round changed while we waited for the lock
+    // (or appeared from null), another caller already advanced — return it.
+    if (snapshot === null && cur !== null) {
+      await client.query('COMMIT');
+      return cur;
+    }
+    if (snapshot !== null && cur !== null && cur.n !== snapshot.n) {
+      await client.query('COMMIT');
+      return cur;
     }
 
     if (cur) {

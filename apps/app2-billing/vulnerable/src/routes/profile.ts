@@ -17,8 +17,9 @@ export function profileRoutes(config: AppConfig): Router {
     res.json({ user: result.rows[0] });
   });
 
-  /** V2.4 Mass-assignment — Object.assign includes role */
+  /** V2.4 Mass-assignment — Object.assign includes role (id stays from session) */
   r.patch('/api/profile', requireAuth, async (req, res) => {
+    const targetId = req.user!.id;
     const current = await query<{
       id: number;
       username: string;
@@ -27,26 +28,27 @@ export function profileRoutes(config: AppConfig): Router {
       avatar_url: string;
       bio: string;
     }>('SELECT id, username, role, display_name, avatar_url, bio FROM users WHERE id = $1', [
-      req.user!.id,
+      targetId,
     ]);
     const user = current.rows[0];
     const beforeRole = user.role;
     Object.assign(user, req.body);
+    // UPDATE always targets the authenticated user — body must not retarget `id`.
     await query(
       `UPDATE users SET role = $2, display_name = $3, avatar_url = $4, bio = $5 WHERE id = $1`,
-      [user.id, user.role, user.display_name, user.avatar_url, user.bio],
+      [targetId, user.role, user.display_name, user.avatar_url, user.bio],
     );
     if (user.role !== beforeRole) {
       logEvent(req.ctx.logger, {
         event: 'role.change',
         reqId: req.ctx.reqId,
         route: 'PATCH /api/profile',
-        userId: user.id,
+        userId: targetId,
         srcIp: req.ip,
         meta: { from: beforeRole, to: user.role },
       });
       await writeAudit(config, {
-        actor: String(user.id),
+        actor: String(targetId),
         event: 'role.change',
         route: 'PATCH /api/profile',
         srcIp: req.ip,
@@ -58,13 +60,13 @@ export function profileRoutes(config: AppConfig): Router {
         event: 'content.store',
         reqId: req.ctx.reqId,
         route: 'PATCH /api/profile',
-        userId: user.id,
+        userId: targetId,
         srcIp: req.ip,
         meta: { payload: String(req.body.bio).slice(0, 200) },
       });
     }
     const authUser = {
-      id: Number(user.id),
+      id: targetId,
       username: user.username,
       role: user.role as 'user' | 'admin',
     };
@@ -73,7 +75,7 @@ export function profileRoutes(config: AppConfig): Router {
     res.json({
       token,
       user: {
-        id: user.id,
+        id: targetId,
         username: user.username,
         role: user.role,
         display_name: user.display_name,
@@ -106,9 +108,22 @@ export function profileRoutes(config: AppConfig): Router {
       detail: { avatarUrl },
     });
     try {
-      const upstream = await fetch(avatarUrl, {
-        headers: { 'X-Stand-Team': config.team },
-      });
+      // X-Stand-Team is only meaningful for the internal metadata SSRF target —
+      // do not attach the stand identity to arbitrary attacker-controlled URLs.
+      const headers: Record<string, string> = {};
+      try {
+        const host = new URL(avatarUrl).hostname.toLowerCase();
+        if (
+          host === 'internal-metadata' ||
+          host === 'internal-metadata.platform.svc.cluster.local' ||
+          host.endsWith('.internal-metadata.platform.svc.cluster.local')
+        ) {
+          headers['X-Stand-Team'] = config.team;
+        }
+      } catch {
+        /* invalid URL — fetch will fail below */
+      }
+      const upstream = await fetch(avatarUrl, { headers });
       const body = await upstream.text();
       await query(`UPDATE users SET avatar_url = $2 WHERE id = $1`, [
         req.user!.id,

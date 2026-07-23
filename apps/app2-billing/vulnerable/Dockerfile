@@ -20,8 +20,7 @@ RUN node -e "const p=require('./package.json'); p.dependencies['@hacktraining/sh
 ENV NODE_ENV=development \
     PORT=3011 \
     TEAM=a \
-    JWT_SECRET=billing-secret \
-    ADMIN_FLAG=TRN{a2044444444444444444444444444444}
+    JWT_SECRET=billing-secret
 
 EXPOSE 3011
 # No USER — soft image for training contrast with reference

@@ -249,8 +249,10 @@ HackTrainingWebapps/
 - **Где:** «загрузить аватар по URL» — сервер сам делает `fetch(userUrl)` без валидации.
 - **Эксплуатация:** `userUrl=http://internal-metadata/flag` (контролируемый internal-сервис-мишень в platform) → чтение флага.
 - **Флаг:** отдаётся внутренним `internal-metadata` сервисом (per-team map; стенд передаёт
-  `X-Stand-Team`), доступным только из pod'а app.
-- **Фикс:** allow-list схем/хостов, запрет приватных диапазонов (SSRF-guard), резолв+проверка IP, таймауты.
+  `X-Stand-Team` только при fetch на metadata-хост), доступным только из pod'а app.
+  Выбор команды на metadata — только по заголовку `X-Stand-Team` (`?team=` / path игнорируются).
+- **Фикс:** allow-list схем, `dns.lookup({ all: true })` + запрет приватных диапазонов
+  (в т.ч. ClusterIP FQDN), таймауты, `redirect: 'error'`.
 - **Логи:** egress-обращения app к внутренним адресам; `avatarUrl` с `http://` на приватные IP.
 
 > Рекомендуемый набор на раунд: **V2.1–V2.5** (core) + V2.6 если группа сильная. 5–6 находок за 60–90 мин.

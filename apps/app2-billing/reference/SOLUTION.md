@@ -144,7 +144,9 @@ curl -s $BASE/api/profile -H "Authorization: Bearer $CT" | grepflag
 - **Где:** `POST /api/profile/avatar` делает `fetch(userUrl)` без валидации хоста
 - **Где флаг:** ответ внутреннего сервиса `internal-metadata` (доступен только из пода app).
   Флаг per-team: стенд передаёт `X-Stand-Team` при fetch; плантер сажает `A10-SSRF` для каждой команды.
-- **Фикс:** allow-list схем/хостов, блок `localhost`/приватных диапазонов/metadata, таймаут, запрет redirects
+- **Фикс:** allow-list схем (`http`/`https`); `dns.lookup({ all: true })` + проверка
+  каждого адреса на приватные диапазоны (ловит и short name, и FQDN
+  `internal-metadata.platform.svc.cluster.local` → ClusterIP); таймаут; `redirect: 'error'`
 - **Логи:** `upload.url.fetch` с приватным target (vuln) / `ssrf.blocked` (ref)
 
 ```bash
@@ -156,6 +158,9 @@ TOKEN=$(curl -s $BASE/api/login -H 'Content-Type: application/json' \
 curl -s -X POST $BASE/api/profile/avatar -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"avatarUrl":"http://internal-metadata:3099/flag"}' | grepflag
+
+# k8s FQDN (эталон тоже блокирует — резолв в ClusterIP):
+#   -d '{"avatarUrl":"http://internal-metadata.platform.svc.cluster.local:3099/flag"}'
 
 # Если app запущен на хосте (не в контейнере) — цель по 127.0.0.1:
 #   -d '{"avatarUrl":"http://127.0.0.1:3099/flag"}'
