@@ -273,7 +273,7 @@ FROM sla_samples WHERE status IN ('down','mumble') ORDER BY tick;
 
 - Каждое security-событие обязано нести `reqId`, `srcIp`, `route`, `event` и релевантный `meta`/`detail` (jsonb) —
   без этого запросы выше не сработают. Дублировать security-события в `security_audit` (переживает рестарт пода).
-- PostgreSQL на стендах: `log_statement=all`, `log_line_prefix='%m [%p] %u@%d %h '`; Promtail должен собирать логи
+- PostgreSQL на стендах: `log_statement=all`, `log_line_prefix='%m [%p] %u@%d %h '`; Grafana Alloy должен собирать логи
   postgres-подов с лейблом `service="postgres"`, иначе SQLi разбирают только из файла в артефакте.
 - Флаги в открытом виде в логах приложений **не** писать — только факт доступа к защищённому ресурсу
   (иначе флаг «подсматривается» в Grafana мимо эксплуатации, см. §6 `scoring.md`).

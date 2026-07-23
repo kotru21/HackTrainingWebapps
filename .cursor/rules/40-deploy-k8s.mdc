@@ -13,7 +13,7 @@ alwaysApply: false
   Не использовать Traefik.
 - **StorageClass:** `local-path` (встроен в k3s) для per-team PVC `workspace` и postgres.
 - Манифесты — **kustomize**: `base/`, `team-template/` (app+postgres+code-server+PVC+Service+NetworkPolicy+
-  ConfigMap/Secret), `overlays/team-a|team-b`, `platform/` (scoreboard+checker+planter+Loki+Promtail+Grafana+
+  ConfigMap/Secret), `overlays/team-a|team-b`, `platform/` (scoreboard+checker+planter+Loki+Alloy+Grafana+
   internal-metadata). Никаких хардкоженных имён namespace в шаблоне — только через overlay.
 
 ## Изоляция (NetworkPolicy — критично для безопасности полигона)

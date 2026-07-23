@@ -12,7 +12,7 @@ name: hacktraining
 
 services:
   helpdesk-pg:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: helpdesk
       POSTGRES_PASSWORD: helpdesk # INTENTIONALLY WEAK — training only
@@ -23,13 +23,16 @@ services:
       - helpdesk_pg_data:/var/lib/postgresql/data
       - ./init/helpdesk-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U helpdesk"]
+      # -h 127.0.0.1 gates on the real TCP listener: during first-boot init Postgres
+      # serves only a unix socket, so a socket-only pg_isready would report healthy before
+      # the init SQL databases exist and let apps connect too early (ECONNREFUSED / crash).
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U helpdesk"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   billing-pg:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: billing
       POSTGRES_PASSWORD: billing # INTENTIONALLY WEAK — training only
@@ -41,13 +44,13 @@ services:
       - billing_pg_data:/var/lib/postgresql/data
       - ./init/billing-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U billing"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U billing"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   scoreboard-pg:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: scoreboard
       POSTGRES_PASSWORD: scoreboard # INTENTIONALLY WEAK — training only
@@ -57,7 +60,7 @@ services:
     volumes:
       - scoreboard_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scoreboard"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U scoreboard"]
       interval: 5s
       timeout: 5s
       retries: 10

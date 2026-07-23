@@ -9,7 +9,7 @@
 | `overlays/team-a\|team-b` | team hosts, attacker peer, images |
 | `overlays/kind/` | optional aggregate + `standard` StorageClass |
 | `overlays/round-roles.yaml` | defender/attacker namespace labels (round 1) |
-| `platform/` | scoreboard, checker, planter, metadata, Loki, Promtail, Grafana (5 dashboards) |
+| `platform/` | scoreboard, checker, planter, metadata, Loki, Alloy, Grafana (5 dashboards) |
 
 ## Target cluster (SPEC)
 

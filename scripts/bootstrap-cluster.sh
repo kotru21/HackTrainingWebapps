@@ -68,7 +68,7 @@ kubectl get ns >/dev/null
 # ingress-nginx (skip if present)
 if ! kubectl get ingressclass nginx >/dev/null 2>&1; then
   echo "==> Installing ingress-nginx"
-  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/cloud/deploy.yaml
+  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.15.1/deploy/static/provider/cloud/deploy.yaml
 fi
 
 # Wait for the controller AND its admission webhook to be serving before applying any

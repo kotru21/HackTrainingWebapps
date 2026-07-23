@@ -5,10 +5,10 @@ metadata:
   name: platform
   labels:
     app.kubernetes.io/part-of: hacktraining
-    # privileged enforce: the Promtail DaemonSet mounts hostPath (/var/log/pods,
-    # /var/lib/docker/containers) to ship pod logs, which the baseline and restricted
-    # profiles forbid — so admission must allow it or Promtail never schedules and Loki
-    # (hence Grafana) stays empty. Individual platform Deployments still set their own
+    # privileged enforce: the Alloy DaemonSet mounts hostPath (/var/log/pods) and runs as
+    # root to ship pod logs, which the baseline and restricted profiles forbid — so
+    # admission must allow it or Alloy never schedules and Loki (hence Grafana) stays
+    # empty. Individual platform Deployments still set their own
     # runAsNonRoot + drop-ALL securityContext; audit/warn stay at restricted for visibility.
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/audit: restricted

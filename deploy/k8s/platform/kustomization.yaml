@@ -9,9 +9,9 @@ resources:
   - checker.yaml
   - internal-metadata.yaml
   - networkpolicy.yaml
-  - networkpolicy-promtail.yaml
+  - networkpolicy-alloy.yaml
   - loki.yaml
-  - promtail.yaml
+  - alloy.yaml
   - grafana-dashboards.yaml
   - grafana.yaml
 labels:

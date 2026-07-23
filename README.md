@@ -21,7 +21,7 @@
 
 - **Backend:** Node.js (TypeScript, Express), **DB:** PostgreSQL, **Frontend:** SSR (EJS) + минимальный JS.
 - **Оркестрация:** k3s (одна VM), namespace на команду, NetworkPolicy для изоляции.
-- **Логи:** pino (JSON) + PostgreSQL statement logging → Promtail → Loki → Grafana.
+- **Логи:** pino (JSON) + PostgreSQL statement logging → Grafana Alloy → Loki → Grafana.
 - **Скоринг:** свой сервис (Express + PostgreSQL) — приём флагов, SLA-чекер, флаг-плантер, live-scoreboard.
 
 ## Быстрый старт (локально, без k8s)
@@ -87,8 +87,8 @@ done
 
 **Внешние образы** (в изолированной сети их тоже надо импортировать заранее, пока есть интернет —
 на машине с доступом `docker pull`, затем `docker save | k3s ctr images import`):
-`postgres:16-alpine`, `busybox:1.36`, `grafana/grafana`, `grafana/loki`,
-`grafana/promtail`, а также образ контроллера ingress-nginx
+`postgres:17-alpine`, `busybox:1.37`, `grafana/grafana`, `grafana/loki`,
+`grafana/alloy`, а также образ контроллера ingress-nginx
 (`registry.k8s.io/ingress-nginx/controller` + `.../kube-webhook-certgen`).
 IDE: `hacktraining/code-server:local` собирается из `codercom/code-server:4.109.5`
 (`platform/code-server/Dockerfile`, офлайн ESLint/Prettier/GitLens) через
@@ -163,6 +163,9 @@ bash scripts/verify-networkpolicy.sh             # Red НЕ достаёт postg
 - Пересобрать изменённый образ → импортировать в k3s (шаг 3) → `kubectl -n <ns> rollout restart deploy/<name>`.
 - Полный сброс стенда команды: `reset-round.sh` (восстанавливает уязвимый baseline, стирает патчи Blue).
 - Снести всё: `k3s-uninstall.sh` (полностью удаляет k3s и данные).
+- **Мажорный апгрейд Postgres (16 → 17)**: data-dir несовместим между мажорами. Данные стендов
+  эфемерны (пересев на старте), поэтому перед раскаткой нового образа удалите PVC Postgres, иначе
+  под уйдёт в CrashLoop («database files are incompatible»): `kubectl -n <ns> delete pvc -l app.kubernetes.io/component=postgres` (+ `platform` `scoreboard-pg`), затем `rollout restart`.
 
 ---
 

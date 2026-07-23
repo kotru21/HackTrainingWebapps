@@ -1,0 +1,143 @@
+# Grafana Alloy — log shipping (migrated from Promtail; Promtail is EOL/deprecated).
+# Tails pod logs off disk (no kubernetes_sd) and pushes to Loki, preserving the exact
+# stream labels the dashboards query: service, team (from the pino JSON body) and
+# namespace, pod, container (from the /var/log/pods file path). event/level stay in the
+# JSON body — dashboards parse them with `| json | event=~`.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: platform
+data:
+  config.alloy: |
+    // Discover pod log files on the node (replaces Promtail static_configs __path__).
+    local.file_match "pods" {
+      path_targets = [{
+        __address__ = "localhost",
+        __path__    = "/var/log/pods/*/*/*.log",
+      }]
+    }
+
+    // Tail the matched files. Adds a `filename` label used by the regex stage below.
+    loki.source.file "pods" {
+      targets    = local.file_match.pods.targets
+      forward_to = [loki.process.pods.receiver]
+    }
+
+    // Pipeline (replaces Promtail pipeline_stages): CRI parse → JSON extract → labels.
+    loki.process "pods" {
+      forward_to = [loki.write.default.receiver]
+
+      stage.cri {}
+
+      stage.json {
+        expressions = {
+          service = "service",
+          team    = "team",
+        }
+      }
+
+      // Only service/team become stream labels from the JSON body (matches Promtail).
+      stage.labels {
+        values = {
+          service = "",
+          team    = "",
+        }
+      }
+
+      // namespace/pod/container come from the file path (same regex as Promtail).
+      stage.regex {
+        source     = "filename"
+        expression = "^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/"
+      }
+
+      stage.labels {
+        values = {
+          namespace = "",
+          pod       = "",
+          container = "",
+        }
+      }
+    }
+
+    // Push to Loki (replaces Promtail clients.url).
+    loki.write "default" {
+      endpoint {
+        url = "http://loki.platform.svc.cluster.local:3100/loki/api/v1/push"
+      }
+    }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: platform
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: alloy
+    service: alloy
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alloy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alloy
+        service: alloy
+    spec:
+      serviceAccountName: alloy
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.18.0
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/var/lib/alloy/data
+            - --server.http.listen-addr=0.0.0.0:12345
+          securityContext:
+            # Pod logs under /var/log/pods are root-owned; read them as root (as Promtail did).
+            allowPrivilegeEscalation: false
+            runAsUser: 0
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 12345
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: pods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/alloy/data
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: alloy-config
+        - name: pods
+          hostPath:
+            path: /var/log/pods
+        - name: data
+          emptyDir: {}
+      tolerations:
+        - operator: Exists
