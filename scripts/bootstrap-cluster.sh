@@ -30,7 +30,31 @@ kubectl get ns >/dev/null
 if ! kubectl get ingressclass nginx >/dev/null 2>&1; then
   echo "==> Installing ingress-nginx"
   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/cloud/deploy.yaml
-  kubectl -n ingress-nginx wait --for=condition=available deploy/ingress-nginx-controller --timeout=180s || true
+fi
+
+# Wait for the controller AND its admission webhook to be serving before applying any
+# manifest that contains Ingress objects. Waiting only for the Deployment to be
+# "available" races the webhook: kubectl can try to create an Ingress while the admission
+# service still has no endpoints, which aborts with
+#   failed calling webhook "validate.nginx.ingress.kubernetes.io": no endpoints available
+#   for service "ingress-nginx-controller-admission"
+# Run unconditionally (also on reruns) so a re-bootstrap is genuinely idempotent.
+echo "==> Waiting for ingress-nginx controller"
+kubectl -n ingress-nginx wait --for=condition=available deploy/ingress-nginx-controller --timeout=180s
+
+echo "==> Waiting for ingress-nginx admission webhook endpoints"
+for _ in $(seq 1 60); do
+  if [[ -n "$(kubectl -n ingress-nginx get endpoints ingress-nginx-controller-admission \
+              -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)" ]]; then
+    echo "    admission webhook ready"
+    break
+  fi
+  sleep 2
+done
+if [[ -z "$(kubectl -n ingress-nginx get endpoints ingress-nginx-controller-admission \
+            -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)" ]]; then
+  echo "ERROR: ingress-nginx admission webhook has no endpoints after 120s" >&2
+  exit 1
 fi
 
 echo "==> Apply base namespaces / PSA"
