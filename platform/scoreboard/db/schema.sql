@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS planted_flags (
   service TEXT NOT NULL,
   vuln_id TEXT NOT NULL,
   tick INTEGER NOT NULL,
-  planted_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+  planted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL
 );
 
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   status TEXT NOT NULL,
   first_blood BOOLEAN NOT NULL DEFAULT false,
   src_ip TEXT,
-  submitted_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (submitter_team, flag)
 );
 
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS sla_samples (
   tick INTEGER NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('up', 'down', 'mumble')),
   latency_ms INTEGER,
-  sampled_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+  sampled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   excluded BOOLEAN NOT NULL DEFAULT false,
   detail JSONB NOT NULL DEFAULT '{}'::jsonb
 );
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS rounds (
   n INTEGER NOT NULL UNIQUE,
   attacker_team TEXT NOT NULL,
   defender_team TEXT NOT NULL,
-  started_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ended_at TIMESTAMPTZ,
   current_tick INTEGER NOT NULL DEFAULT 0
 );

@@ -225,7 +225,7 @@ const BOARD_HTML = `<!DOCTYPE html>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
-  <title>ВФ Training Scoreboard</title>
+  <title>Табло · HackTraining</title>
   <style>
     :root{
       --bg:#020617; --surface:#0b1220; --surface-2:#111a2e; --border:#1e293b; --border-2:#334155;
@@ -319,33 +319,33 @@ const BOARD_HTML = `<!DOCTYPE html>
   <header>
     <div class="brand">
       <img class="logo" src="/logo.png" alt="Военный факультет БГУИР" />
-      <div><h1>HackTraining <span>Scoreboard</span></h1><div class="sub" id="sub">attack / defense</div></div>
+      <div><h1>HackTraining <span>Табло</span></h1><div class="sub" id="sub">атака / защита</div></div>
     </div>
-    <div class="chip"><span class="k">round</span><span id="roundInfo">—</span></div>
-    <div class="chip"><span class="dot" id="liveDot"></span><span id="liveTxt">LIVE</span></div>
+    <div class="chip"><span class="k">раунд</span><span id="roundInfo">—</span></div>
+    <div class="chip"><span class="dot" id="liveDot"></span><span id="liveTxt">ОНЛАЙН</span></div>
   </header>
   <section class="submit">
     <form class="submitcard" id="submitForm" autocomplete="off">
-      <h2>Submit flag</h2>
-      <input id="token" type="password" placeholder="team token" aria-label="team token" />
-      <input id="flag" type="text" placeholder="TRN{…}" aria-label="flag" />
-      <button type="submit" id="submitBtn">Submit</button>
+      <h2>Сдать флаг</h2>
+      <input id="token" type="password" placeholder="токен команды" aria-label="токен команды" />
+      <input id="flag" type="text" placeholder="TRN{…}" aria-label="флаг" />
+      <button type="submit" id="submitBtn">Сдать</button>
       <div class="smsg" id="smsg" aria-live="polite"></div>
     </form>
   </section>
   <main>
-    <section class="panel" aria-label="Leaderboard">
-      <h2>Leaderboard</h2>
+    <section class="panel" aria-label="Рейтинг">
+      <h2>Рейтинг</h2>
       <div class="row head">
-        <span style="text-align:center">#</span><span>Team</span>
-        <span style="text-align:right">Atk</span><span style="text-align:right">Def</span>
-        <span>SLA</span><span style="text-align:right">Total</span>
+        <span style="text-align:center">#</span><span>Команда</span>
+        <span style="text-align:right">Атака</span><span style="text-align:right">Защита</span>
+        <span>SLA</span><span style="text-align:right">Итог</span>
       </div>
-      <div id="teams"><div class="empty">Waiting for teams…</div></div>
+      <div id="teams"><div class="empty">Ожидание команд…</div></div>
     </section>
-    <section class="panel" aria-label="Recent captures">
-      <h2>Recent captures</h2>
-      <ul class="tl" id="timeline" aria-live="polite"><li class="empty">No captures yet</li></ul>
+    <section class="panel" aria-label="Последние захваты">
+      <h2>Последние захваты</h2>
+      <ul class="tl" id="timeline" aria-live="polite"><li class="empty">Пока нет захватов</li></ul>
     </section>
   </main>
   <script>
@@ -355,14 +355,14 @@ const BOARD_HTML = `<!DOCTYPE html>
       return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]; }); }
     function fmt(n){ return Number(n || 0).toLocaleString('en-US'); }
     function slaColor(p){ return p >= 90 ? 'var(--ok)' : p >= 75 ? 'var(--warn)' : 'var(--bad)'; }
-    var STAR = '<svg class="fb" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-label="first blood"><title>first blood</title><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
+    var STAR = '<svg class="fb" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-label="первая кровь"><title>первая кровь</title><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
     var prevTotals = {};
 
     function setLive(on){
       var dot = document.getElementById('liveDot'), txt = document.getElementById('liveTxt');
       dot.style.background = on ? 'var(--ok)' : 'var(--bad)';
       dot.style.animation = on ? '' : 'none';
-      txt.textContent = on ? 'LIVE' : 'RECONNECTING';
+      txt.textContent = on ? 'ОНЛАЙН' : 'ПЕРЕПОДКЛЮЧЕНИЕ';
     }
 
     async function refresh(){
@@ -373,10 +373,10 @@ const BOARD_HTML = `<!DOCTYPE html>
 
       var round = r.round;
       document.getElementById('roundInfo').innerHTML = round
-        ? esc(round.n) + ' <span class="k">·</span> tick ' + esc(round.current_tick)
+        ? esc(round.n) + ' <span class="k">·</span> тик ' + esc(round.current_tick)
           + ' <span class="k">·</span> ' + esc(String(round.attacker_team).toUpperCase())
           + ' <span class="arrow">→</span> ' + esc(String(round.defender_team).toUpperCase())
-        : 'no active round';
+        : 'нет активного раунда';
 
       var teams = (r.teams || []).slice().sort(function(a, b){ return (b.total || 0) - (a.total || 0); });
       document.getElementById('teams').innerHTML = teams.map(function(t, i){
@@ -394,19 +394,20 @@ const BOARD_HTML = `<!DOCTYPE html>
           + '<span class="pct">' + sla + '% SLA</span></div>'
           + '<div class="total">' + fmt(t.total) + '</div>'
           + '</div>';
-      }).join('') || '<div class="empty">Waiting for teams…</div>';
+      }).join('') || '<div class="empty">Ожидание команд…</div>';
 
       document.getElementById('timeline').innerHTML = (r.timeline || []).map(function(s){
         var tc = teamColor(s.submitter_team);
-        var hh = new Date(s.submitted_at).toISOString().slice(11, 19);
+        // Локальное время организатора (submitted_at приходит в UTC — показываем по часам зрителя)
+        var hh = new Date(s.submitted_at).toLocaleTimeString('ru-RU', { hour12: false });
         return '<li><span class="t">' + hh + '</span>'
           + '<span class="mid" style="--tc:' + tc + '">'
           + '<span class="badge">' + esc(String(s.submitter_team).toUpperCase()) + '</span>'
           + '<span class="vuln">' + esc(s.vuln_id || '—') + '</span>' + (s.first_blood ? STAR : '')
           + '</span><span class="pts">+' + fmt(s.points) + '</span></li>';
-      }).join('') || '<li class="empty">No captures yet</li>';
+      }).join('') || '<li class="empty">Пока нет захватов</li>';
 
-      document.getElementById('sub').textContent = 'updated ' + new Date().toLocaleTimeString();
+      document.getElementById('sub').textContent = 'обновлено ' + new Date().toLocaleTimeString('ru-RU');
     }
     // Сдача флага прямо с табло: POST /api/submit с токеном команды в заголовке
     var sf = document.getElementById('submitForm');
@@ -416,8 +417,8 @@ const BOARD_HTML = `<!DOCTYPE html>
       var msg = document.getElementById('smsg');
       var token = document.getElementById('token').value.trim();
       var flag = document.getElementById('flag').value.trim();
-      if (!token || !flag){ msg.className = 'smsg warn'; msg.textContent = 'enter team token and flag'; return; }
-      btn.disabled = true; msg.className = 'smsg'; msg.textContent = 'submitting…';
+      if (!token || !flag){ msg.className = 'smsg warn'; msg.textContent = 'введите токен команды и флаг'; return; }
+      btn.disabled = true; msg.className = 'smsg'; msg.textContent = 'отправка…';
       try {
         var res = await fetch('/api/submit', {
           method: 'POST',
@@ -426,18 +427,20 @@ const BOARD_HTML = `<!DOCTYPE html>
         });
         var d = await res.json();
         var st = d.status || 'error';
+        var STMAP = { duplicate:'повтор', expired:'просрочен', own_flag:'свой флаг', invalid:'неверный флаг',
+          rate_limited:'лимит запросов', unauthorized:'нет доступа', team_mismatch:'чужой токен', error:'ошибка' };
         if (st === 'accepted'){
           msg.className = 'smsg ok';
-          msg.textContent = '✓ accepted  +' + fmt(d.points || 0)
-            + (d.vuln_id ? '  ' + d.vuln_id : '') + (d.first_blood ? '  · first blood!' : '');
+          msg.textContent = '✓ принято  +' + fmt(d.points || 0)
+            + (d.vuln_id ? '  ' + d.vuln_id : '') + (d.first_blood ? '  · первая кровь!' : '');
           document.getElementById('flag').value = '';
           refresh();
         } else {
           var soft = st === 'duplicate' || st === 'expired' || st === 'own_flag' || st === 'rate_limited';
           msg.className = 'smsg ' + (soft ? 'warn' : 'bad');
-          msg.textContent = '✗ ' + esc(st);
+          msg.textContent = '✗ ' + (STMAP[st] || esc(st));
         }
-      } catch (err) { msg.className = 'smsg bad'; msg.textContent = 'network error'; }
+      } catch (err) { msg.className = 'smsg bad'; msg.textContent = 'ошибка сети'; }
       btn.disabled = false;
     });
     // Реалтайм-обновление табло: опрос /api/scoreboard каждые 3 секунды

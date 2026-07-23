@@ -47,7 +47,7 @@ export async function bumpTick(pool: Pool): Promise<RoundRow> {
 export async function nextRound(pool: Pool): Promise<RoundRow> {
   const cur = await getActiveRound(pool);
   if (cur) {
-    await pool.query(`UPDATE rounds SET ended_at = (NOW() AT TIME ZONE 'utc') WHERE id = $1`, [
+    await pool.query(`UPDATE rounds SET ended_at = NOW() WHERE id = $1`, [
       cur.id,
     ]);
   }
