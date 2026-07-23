@@ -2,8 +2,8 @@
 # Build downloads .vsix from Open VSX once, then installs via --install-extension <local.vsix>
 # into /opt/hacktraining/extensions so the runtime PVC on ~/.local/share/code-server
 # (settings/state) does not hide the baked extensions.
-# 4.109.x embeds VS Code ~1.109 — needed for Prettier 12.x (engines ^1.101.0).
-FROM codercom/code-server:4.109.5
+# 4.129.x embeds VS Code ~1.129 — satisfies Prettier 12.x / GitLens (engines ^1.101.0).
+FROM codercom/code-server:4.129.0
 
 USER root
 RUN mkdir -p /opt/hacktraining/extensions /tmp/vsix \
@@ -15,7 +15,7 @@ WORKDIR /tmp/vsix
 # Pin versions for reproducible training images (not Open VSX "latest"/nightlies).
 ARG ESLINT_VERSION=3.0.34
 ARG PRETTIER_VERSION=12.4.0
-ARG GITLENS_VERSION=17.6.1
+ARG GITLENS_VERSION=2026.7.230551
 
 ENV EXTENSIONS_DIR=/opt/hacktraining/extensions
 
