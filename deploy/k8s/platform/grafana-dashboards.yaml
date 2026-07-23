@@ -121,7 +121,7 @@ data:
           "id": 1,
           "targets": [
             {
-              "expr": "{service=~\"app|postgres\"} |= \"sql.error\" or {service=\"postgres\"} |= \"UNION\"",
+              "expr": "{namespace=~\"team-.*\", container=\"app\"} |= \"sql.error\" or {namespace=~\"team-.*\", container=\"postgres\"} |~ \"UNION|union\"",
               "refId": "A"
             }
           ],
