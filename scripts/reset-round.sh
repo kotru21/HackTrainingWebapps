@@ -89,7 +89,9 @@ if [[ "${SKIP_IMAGE_SET:-0}" != "1" ]]; then
       -p "[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/image\",\"value\":\"${IMAGE}\"}]"
 fi
 
-# 2) Wipe workspace PVC contents (team patches) via short-lived Job
+# 2) Wipe workspace PVC contents (team patches) via short-lived Job.
+#    Emptying the PVC is what restores the baseline: on the next app start the
+#    seed-workspace initContainer re-copies a clean vulnerable source tree from the image.
 kubectl -n "$NS" delete job reset-workspace --ignore-not-found --wait=false 2>/dev/null || true
 cat <<EOF | kubectl apply -f -
 apiVersion: batch/v1

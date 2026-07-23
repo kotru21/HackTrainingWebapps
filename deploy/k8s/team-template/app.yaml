@@ -19,11 +19,43 @@ spec:
         app.kubernetes.io/component: app
         service: app
     spec:
+      initContainers:
+        # Seed the per-team workspace PVC from the image baseline on first start (empty
+        # PVC only — never clobbers a team's in-progress edits). The app then runs this
+        # editable copy, so fixes made in code-server take effect. reset-round wipes the
+        # PVC, so the next start re-seeds a clean vulnerable baseline (SPEC §8.3).
+        # Uses the same image as the app container, so kustomize's image transformer
+        # swaps it to the app1 image on app1 overlays automatically.
+        - name: seed-workspace
+          image: hacktraining/app2-billing-vulnerable:local
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              if [ -z "$(ls -A /workspace 2>/dev/null)" ]; then
+                echo "seeding workspace from ${STAND_APP_DIR}"
+                cp -a "${STAND_APP_DIR}/." /workspace/
+                echo "workspace seeded"
+              else
+                echo "workspace not empty — keeping existing team edits"
+              fi
+          envFrom:
+            - configMapRef:
+                name: stand-app-config
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
       containers:
         - name: app
           # Overlays replace this image (vuln vs ref)
           image: hacktraining/app2-billing-vulnerable:local
           imagePullPolicy: IfNotPresent
+          # Run the editable workspace copy directly with tsx watch: edits saved in
+          # code-server restart the server in-process (no rebuild). Overrides the image
+          # CMD (`node dist/index.js`), which would otherwise run the baked, read-only build.
+          workingDir: /workspace
+          command: ["sh", "-c", "exec node_modules/.bin/tsx watch src/index.ts"]
           ports:
             - name: http
               containerPort: 3011

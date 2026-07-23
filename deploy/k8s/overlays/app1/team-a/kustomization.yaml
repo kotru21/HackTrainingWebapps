@@ -18,6 +18,9 @@ patches:
       - op: replace
         path: /data/JWT_COOKIE_NAME
         value: hd_token
+      - op: replace
+        path: /data/STAND_APP_DIR
+        value: /app
       - op: add
         path: /data/SERVE_STATIC_ROOT
         value: "."
