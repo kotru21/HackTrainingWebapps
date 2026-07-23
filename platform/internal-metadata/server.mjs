@@ -1,15 +1,21 @@
 #!/usr/bin/env node
 /**
  * Internal metadata SSRF target.
- * Serves a planted TRN flag; plant via POST /plant with X-Plant-Token.
- * Does not log flag values in cleartext.
+ * Holds per-team planted TRN flags; plant via POST /plant with X-Plant-Token.
+ * GET /flag selects the flag by X-Stand-Team (set by the stand on outbound fetch),
+ * ?team=, or /flag/:team. Does not log flag values in cleartext.
  */
 import http from 'node:http';
 
 const PORT = Number(process.env.PORT ?? 3099);
 const PLANT_TOKEN = process.env.METADATA_PLANT_TOKEN ?? 'metadata-plant-token'; // INTENTIONALLY WEAK — training only
-let currentFlag = process.env.SSRF_FLAG ?? 'TRN{a2066666666666666666666666666666}';
-let currentTeam = process.env.SSRF_FLAG_TEAM ?? 'a';
+
+/** @type {Map<string, string>} */
+const flagsByTeam = new Map();
+
+const seedFlag = process.env.SSRF_FLAG ?? 'TRN{a2066666666666666666666666666666}';
+const seedTeam = process.env.SSRF_FLAG_TEAM ?? 'a';
+flagsByTeam.set(seedTeam, seedFlag);
 
 function sendJson(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -25,11 +31,25 @@ function readBody(req) {
   });
 }
 
+function resolveTeam(req, url) {
+  const header = req.headers['x-stand-team'];
+  if (typeof header === 'string' && header.trim()) return header.trim();
+  const q = url.searchParams.get('team');
+  if (q) return q;
+  const pathMatch = url.pathname.match(/^\/flag\/([^/]+)\/?$/);
+  if (pathMatch) return pathMatch[1];
+  return null;
+}
+
+function fingerprint(flag) {
+  return `${flag.slice(0, 8)}…`;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://127.0.0.1:${PORT}`);
 
   if (url.pathname === '/healthz' || url.pathname === '/readyz') {
-    sendJson(res, 200, { status: 'ok' });
+    sendJson(res, 200, { status: 'ok', teams: [...flagsByTeam.keys()] });
     return;
   }
 
@@ -46,26 +66,38 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 400, { error: 'invalid flag' });
         return;
       }
-      currentFlag = body.flag;
-      if (typeof body.team === 'string') currentTeam = body.team;
+      if (typeof body.team !== 'string' || !body.team.trim()) {
+        sendJson(res, 400, { error: 'team required' });
+        return;
+      }
+      const team = body.team.trim();
+      flagsByTeam.set(team, body.flag);
       console.log(
         JSON.stringify({
           event: 'flag.planted',
-          team: currentTeam,
-          flagFp: `${currentFlag.slice(0, 8)}…`,
+          team,
+          flagFp: fingerprint(body.flag),
+          teams: [...flagsByTeam.keys()],
           ts: new Date().toISOString(),
         }),
       );
-      sendJson(res, 200, { status: 'planted', team: currentTeam });
+      sendJson(res, 200, { status: 'planted', team });
     } catch {
       sendJson(res, 400, { error: 'bad json' });
     }
     return;
   }
 
-  if (url.pathname === '/flag' || url.pathname === '/') {
+  if (url.pathname === '/flag' || url.pathname === '/' || /^\/flag\/[^/]+\/?$/.test(url.pathname)) {
+    const team = resolveTeam(req, url) ?? seedTeam;
+    const flag = flagsByTeam.get(team);
+    if (!flag) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('no flag for team');
+      return;
+    }
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end(currentFlag);
+    res.end(flag);
     return;
   }
 
@@ -81,6 +113,7 @@ server.listen(PORT, HOST, () => {
       port: PORT,
       host: HOST,
       service: 'internal-metadata',
+      teams: [...flagsByTeam.keys()],
       ts: new Date().toISOString(),
     }),
   );

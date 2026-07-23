@@ -85,6 +85,16 @@ async function plantBillingStand(
           ]);
         },
       },
+      {
+        vuln_id: 'A04-MASSASSIGN',
+        run: async (flag) => {
+          await pool.query(
+            `INSERT INTO secret_flags (name, value) VALUES ('admin_flag', $1)
+             ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value`,
+            [flag],
+          );
+        },
+      },
     ];
 
     for (const p of plants) {
@@ -165,8 +175,8 @@ async function plantHelpdeskStand(
   }
 }
 
-/** Single shared metadata flag per tick (SSRF target). Tagged to first billing stand. */
-async function plantMetadataOnce(
+/** Per-team metadata flag (SSRF target). One plant per billing stand each tick. */
+async function plantMetadataForTeam(
   cfg: PlanterConfig,
   team: string,
   tick: number,
@@ -182,7 +192,10 @@ async function plantMetadataOnce(
     body: JSON.stringify({ flag, team }),
   });
   if (!res.ok) {
-    log.warn({ event: 'plant.metadata.fail', status: res.status }, 'metadata plant skipped');
+    log.warn(
+      { event: 'plant.metadata.fail', team, status: res.status },
+      'metadata plant skipped',
+    );
     return;
   }
   await registerPlant(cfg, {
@@ -216,18 +229,18 @@ export async function runTick(cfg: PlanterConfig): Promise<number> {
     Date.now() + cfg.flag_ttl_ticks * cfg.tick_seconds * 1000,
   ).toISOString();
 
-  let metadataTeam: string | null = null;
+  const billingTeams = new Set<string>();
   for (const stand of cfg.stands) {
     if (stand.kind === 'billing') {
       await plantBillingStand(cfg, stand, tick, expiresAt);
-      if (!metadataTeam) metadataTeam = stand.team;
+      billingTeams.add(stand.team);
     } else if (stand.kind === 'helpdesk') {
       await plantHelpdeskStand(cfg, stand, tick, expiresAt);
     }
   }
 
-  if (metadataTeam) {
-    await plantMetadataOnce(cfg, metadataTeam, tick, expiresAt);
+  for (const team of billingTeams) {
+    await plantMetadataForTeam(cfg, team, tick, expiresAt);
   }
 
   lastPlantedTick = tick;

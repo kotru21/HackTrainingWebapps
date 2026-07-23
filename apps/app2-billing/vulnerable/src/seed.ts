@@ -17,6 +17,7 @@ const FLAGS = {
   IDOR: 'TRN{a2011111111111111111111111111111}',
   SQLI: 'TRN{a2022222222222222222222222222222}',
   XSS: 'TRN{a2033333333333333333333333333333}',
+  MASSASSIGN: 'TRN{a2044444444444444444444444444444}',
   CRYPTO: 'TRN{a2055555555555555555555555555555}',
 };
 
@@ -67,9 +68,9 @@ export async function migrateAndSeed(logger: Logger): Promise<void> {
   );
 
   await query(
-    `INSERT INTO secret_flags (name, value) VALUES ('sqli_flag', $1)
+    `INSERT INTO secret_flags (name, value) VALUES ('sqli_flag', $1), ('admin_flag', $2)
      ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value`,
-    [FLAGS.SQLI],
+    [FLAGS.SQLI, FLAGS.MASSASSIGN],
   );
 
   await query(`DELETE FROM admin_notes`);

@@ -261,7 +261,20 @@ export async function runCheckerTick(cfg: CheckerConfig): Promise<void> {
   const tick = round.current_tick ?? 0;
 
   for (const stand of cfg.stands) {
-    const result = await checkStand(stand, cfg.timeout_ms);
-    await reportSla(cfg, stand, tick, result);
+    try {
+      const result = await checkStand(stand, cfg.timeout_ms);
+      await reportSla(cfg, stand, tick, result);
+    } catch (err) {
+      log.error(
+        {
+          event: 'sla.stand.error',
+          team: stand.team,
+          service: stand.service,
+          tick,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'stand check failed; continuing with remaining stands',
+      );
+    }
   }
 }

@@ -91,6 +91,11 @@ patches:
       - op: add
         path: /spec/template/metadata/labels/team
         value: a
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: TEAM
+          value: a
 labels:
   - pairs:
       team: a

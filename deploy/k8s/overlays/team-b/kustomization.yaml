@@ -39,6 +39,11 @@ patches:
       - op: add
         path: /spec/template/metadata/labels/team
         value: b
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: TEAM
+          value: b
 labels:
   - pairs:
       team: b

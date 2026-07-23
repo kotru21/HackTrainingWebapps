@@ -234,7 +234,7 @@ HackTrainingWebapps/
 ### V2.4 `[core]` A08/A04 Mass-Assignment → privilege escalation
 - **Где:** `PATCH /api/profile` делает `Object.assign(user, req.body)` — включая `role`.
 - **Эксплуатация:** `{"role":"admin"}` в теле → самоповышение до админа → доступ к admin-only флагу.
-- **Флаг:** admin-only эндпоинт `/api/admin/flag`.
+- **Флаг:** admin-only эндпоинт `/api/admin/flag` (значение из `secret_flags.admin_flag`, сажает плантер каждый тик).
 - **Фикс:** явный allow-list полей (`{displayName, avatarUrl}`); `role` меняется только отдельным admin-путём.
 - **Логи:** `PATCH /api/profile` с полем `role`; событие `role.change` вне админского пути.
 
@@ -248,7 +248,8 @@ HackTrainingWebapps/
 ### V2.6 `[bonus]` A10 SSRF
 - **Где:** «загрузить аватар по URL» — сервер сам делает `fetch(userUrl)` без валидации.
 - **Эксплуатация:** `userUrl=http://internal-metadata/flag` (контролируемый internal-сервис-мишень в platform) → чтение флага.
-- **Флаг:** отдаётся внутренним `internal-metadata` сервисом, доступным только из pod'а app.
+- **Флаг:** отдаётся внутренним `internal-metadata` сервисом (per-team map; стенд передаёт
+  `X-Stand-Team`), доступным только из pod'а app.
 - **Фикс:** allow-list схем/хостов, запрет приватных диапазонов (SSRF-guard), резолв+проверка IP, таймауты.
 - **Логи:** egress-обращения app к внутренним адресам; `avatarUrl` с `http://` на приватные IP.
 

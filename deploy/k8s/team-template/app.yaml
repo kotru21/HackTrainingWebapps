@@ -84,9 +84,8 @@ spec:
                 name: stand-app-secret
           env:
             - name: TEAM
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+              # Short id ('a'|'b') — must match scoreboard submissions/stands, not namespace
+              value: "a"
           livenessProbe:
             httpGet:
               path: /healthz

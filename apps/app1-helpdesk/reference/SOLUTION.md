@@ -92,10 +92,11 @@ curl -s -i $BASE/api/tickets -H 'Origin: http://evil.example' -H "Authorization:
 
 ---
 
-## V1.5 Дефолтный админ — `CFG-CREDS`
+## V1.5 Дефолтный админ — `CFG-JWT` (тот же флаг, что V1.1)
 
 - **Где:** `SEED_ADMIN_PASSWORD=admin123` → пользователь `admin`
-- **Где флаг:** `admin_secrets` (через админку)
+- **Где флаг:** `admin_secrets.value` (name=`round_flag`) — тот же секрет, что и у V1.1;
+  отдельной позиции `CFG-CREDS` в таблице очков нет (вход дефолтом — альтернативный путь к CFG-JWT)
 - **Фикс:** сильный `SEED_ADMIN_PASSWORD` из Secret + пересев
 - **Логи:** `auth.login.ok` для `admin` с внешнего IP
 

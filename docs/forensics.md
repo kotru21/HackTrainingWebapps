@@ -24,7 +24,9 @@
 4. Сопоставить с сабмитом флага в `submissions` (какой `vuln_id`, во сколько) — доказать, что баг «выстрелил».
 5. Показать git-diff патча Blue → закрыли/не закрыли и почему кражи прекратились/продолжились.
 
-Лейблы Loki: `namespace` (=`team-a`/`team-b`/`platform`), `service`, `event`. Ниже `team-a` — подставлять нужный.
+Лейблы Loki: `namespace` (=`team-a`/`team-b`/`platform`), `service`, `team` (=`a`/`b` из JSON
+поля логов — совпадает со scoreboard), `event`. Ниже `namespace="team-a"` — подставлять нужный;
+для джойна со `submissions`/`sla_samples` используйте `{team="a"}` / `| json | team="a"`.
 
 ---
 
@@ -112,8 +114,9 @@ WHERE detail ? 'origin' AND detail->>'origin' !~ 'helpdesk\.local'
 ORDER BY ts;
 ```
 
-### V1.5 Дефолтные креды админа → `vuln_id: CFG-*`
+### V1.5 Дефолтные креды админа → `vuln_id: CFG-JWT`
 **Признак:** серия `auth.login.fail` для `admin`, затем `auth.login.ok` с внешнего IP (подбор), либо сразу успех дефолтом.
+Сдача флага идёт как `CFG-JWT` (`round_flag`) — тот же секрет, что при forged JWT.
 ```logql
 {namespace="team-a"} | json | event=~"auth.login.(ok|fail)" | userId="admin"
 ```

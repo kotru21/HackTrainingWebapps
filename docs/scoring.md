@@ -23,13 +23,12 @@
 |------------------|------------------|-------------:|
 | IDOR / Broken Access Control | `A01-IDOR` | 100 |
 | Mass-assignment privesc | `A04-MASSASSIGN` | 120 |
-| Слабые креды / конфиг (app1) | `CFG-*` | 120 |
+| Debug / CORS / headers (app1) | `CFG-LEAK` | 150 |
 | Криптосбои (пароли/reset) | `A02-CRYPTO` | 150 |
 | Stored XSS | `A03-XSS` | 150 |
-| CORS / заголовки / debug-утечка | `CFG-LEAK` | 150 |
 | SQL-инъекция | `A03-SQLI` | 200 |
 | SSRF | `A10-SSRF` | 200 |
-| RCE через зависимость / forged-admin | `CFG-RCE`, `CFG-JWT` | 300 |
+| RCE через зависимость / forged-admin / default-admin | `CFG-RCE`, `CFG-JWT` | 300 |
 
 Правила начисления:
 - **Дедуп:** одна и та же строка-флаг засчитывается атакующей команде один раз (`UNIQUE(submitter_team, flag)`).
@@ -133,7 +132,6 @@ flag_values:
   CFG-JWT: 300
   CFG-RCE: 300
   CFG-LEAK: 150
-  CFG-CREDS: 120
   A02-CRYPTO: 150
   A03-XSS: 150
   A03-SQLI: 200

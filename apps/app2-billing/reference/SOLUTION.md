@@ -91,7 +91,8 @@ DOM админа через jsdom и достаёт флаг end-to-end):
 ## V2.4 Mass-assignment → privesc — `A04-MASSASSIGN`
 
 - **Где:** `PATCH /api/profile` делает `Object.assign(user, req.body)` — включая `role`
-- **Где флаг:** `GET /api/admin/flag` (только для админа)
+- **Где флаг:** `GET /api/admin/flag` (только для админа) — значение сажается плантером в
+  `secret_flags(admin_flag)` каждый тик (`vuln_id: A04-MASSASSIGN`), не из `ADMIN_FLAG` env
 - **Фикс:** явный allow-list полей `{display_name, avatar_url, bio}`; `role` меняется отдельным admin-путём
 - **Логи:** `role.change` вне админского пути (vuln)
 
@@ -141,7 +142,8 @@ curl -s $BASE/api/profile -H "Authorization: Bearer $CT" | grepflag
 ## V2.6 SSRF — `A10-SSRF`
 
 - **Где:** `POST /api/profile/avatar` делает `fetch(userUrl)` без валидации хоста
-- **Где флаг:** ответ внутреннего сервиса `internal-metadata` (доступен только из пода app)
+- **Где флаг:** ответ внутреннего сервиса `internal-metadata` (доступен только из пода app).
+  Флаг per-team: стенд передаёт `X-Stand-Team` при fetch; плантер сажает `A10-SSRF` для каждой команды.
 - **Фикс:** allow-list схем/хостов, блок `localhost`/приватных диапазонов/metadata, таймаут, запрет redirects
 - **Логи:** `upload.url.fetch` с приватным target (vuln) / `ssrf.blocked` (ref)
 

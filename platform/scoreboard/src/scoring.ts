@@ -63,22 +63,42 @@ export async function bumpTick(pool: Pool): Promise<RoundRow> {
 }
 
 export async function nextRound(pool: Pool): Promise<RoundRow> {
-  const cur = await getActiveRound(pool);
-  if (cur) {
-    await pool.query(`UPDATE rounds SET ended_at = NOW() WHERE id = $1`, [
-      cur.id,
-    ]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Serialize concurrent advances (double swap-roles / judge double-click).
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['round:next']);
+
+    const cur = await getActiveRound(client);
+    // Idempotent: a duplicate next that lands right after another advance must not
+    // create a second successor (criterion: exactly one new round, no 500).
+    if (cur && cur.current_tick === 0) {
+      const ageMs = Date.now() - new Date(cur.started_at).getTime();
+      if (ageMs < 3000) {
+        await client.query('COMMIT');
+        return cur;
+      }
+    }
+
+    if (cur) {
+      await client.query(`UPDATE rounds SET ended_at = NOW() WHERE id = $1`, [cur.id]);
+    }
+    const attacker = cur?.defender_team ?? 'b';
+    const defender = cur?.attacker_team ?? 'a';
+    const r = await client.query<RoundRow>(
+      `INSERT INTO rounds (n, attacker_team, defender_team, current_tick)
+       VALUES ((SELECT COALESCE(MAX(n), 0) + 1 FROM rounds), $1, $2, 0)
+       RETURNING id, n, attacker_team, defender_team, started_at, ended_at, current_tick`,
+      [attacker, defender],
+    );
+    await client.query('COMMIT');
+    return r.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-  const n = (cur?.n ?? 0) + 1;
-  const attacker = cur?.defender_team ?? 'b';
-  const defender = cur?.attacker_team ?? 'a';
-  const r = await pool.query<RoundRow>(
-    `INSERT INTO rounds (n, attacker_team, defender_team, current_tick)
-     VALUES ($1, $2, $3, 0)
-     RETURNING id, n, attacker_team, defender_team, started_at, ended_at, current_tick`,
-    [n, attacker, defender],
-  );
-  return r.rows[0];
 }
 
 export interface TeamScore {

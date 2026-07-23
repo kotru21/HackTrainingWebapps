@@ -106,7 +106,9 @@ export function profileRoutes(config: AppConfig): Router {
       detail: { avatarUrl },
     });
     try {
-      const upstream = await fetch(avatarUrl);
+      const upstream = await fetch(avatarUrl, {
+        headers: { 'X-Stand-Team': config.team },
+      });
       const body = await upstream.text();
       await query(`UPDATE users SET avatar_url = $2 WHERE id = $1`, [
         req.user!.id,
@@ -125,7 +127,7 @@ export function profileRoutes(config: AppConfig): Router {
   });
 
   r.get('/api/admin/flag', requireAuth, requireAdmin(config), async (req, res) => {
-    // Do not log flag value
+    // Do not log flag value — planted per-tick into secret_flags(admin_flag)
     logEvent(req.ctx.logger, {
       event: 'admin.access',
       reqId: req.ctx.reqId,
@@ -134,7 +136,14 @@ export function profileRoutes(config: AppConfig): Router {
       srcIp: req.ip,
       meta: { resource: 'admin_flag' },
     });
-    res.json({ flag: config.adminFlag });
+    const row = await query<{ value: string }>(
+      `SELECT value FROM secret_flags WHERE name = 'admin_flag' LIMIT 1`,
+    );
+    if (!row.rows[0]) {
+      res.status(503).json({ error: 'admin flag not planted yet' });
+      return;
+    }
+    res.json({ flag: row.rows[0].value });
   });
 
   r.get('/api/admin/note', requireAuth, requireAdmin(config), async (_req, res) => {

@@ -166,11 +166,12 @@ fi
 # 4) Optional: bounce postgres clients by deleting app pods again after DB ready
 kubectl -n "$NS" wait --for=condition=ready pod -l app.kubernetes.io/component=postgres --timeout=20s 2>/dev/null || true
 
-# 5) Health check
+# 5) Health check — node fetch (wget is not in the stand image)
 READY=0
 for _ in $(seq 1 15); do
-  if kubectl -n "$NS" exec "deploy/app" -- wget -qO- --timeout=2 http://127.0.0.1:3011/healthz 2>/dev/null | grep -q ok \
-    || kubectl -n "$NS" exec "deploy/app" -- wget -qO- --timeout=2 http://127.0.0.1:3000/healthz 2>/dev/null | grep -q ok; then
+  if kubectl -n "$NS" exec "deploy/app" -- node -e \
+    "const tryPort=async(p)=>{const r=await fetch('http://127.0.0.1:'+p+'/healthz');const t=await r.text();if(!r.ok||!/ok/i.test(t))throw 1};tryPort(3011).catch(()=>tryPort(3000)).then(()=>process.exit(0)).catch(()=>process.exit(1))" \
+    2>/dev/null; then
     READY=1
     break
   fi
