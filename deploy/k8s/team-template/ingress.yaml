@@ -6,6 +6,12 @@ metadata:
     app.kubernetes.io/component: ingress
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # code-server (IDE host) loads its editor over a long-lived WebSocket. The default
+    # ingress-nginx read/send timeout (60s) drops that connection, so the IDE authenticates
+    # but then renders a blank page. Raise the timeouts so the workbench stays connected.
+    # WebSocket upgrade itself is handled automatically by ingress-nginx.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
 spec:
   ingressClassName: nginx
   rules:
