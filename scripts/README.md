@@ -5,7 +5,7 @@
 | `bootstrap-cluster.sh` / `.ps1` | Cluster bring-up (Phase 6) |
 | `deploy-team.sh` | Apply one team overlay |
 | `reset-round.sh` / `.ps1` | Restore vulnerable baseline (<60s) |
-| `swap-roles.sh` / `.ps1` | Flip defender/attacker NetPol + `POST /api/round/next` |
+| `swap-roles.sh` / `.ps1` | Scoreboard SoT: `GET /api/round` → `POST /api/round/next` → sync NetPol/labels |
 | `collect-logs.sh` / `.ps1` | `artifacts/round-<n>-<team>.tar.gz` |
 | `phase8-smoke.sh` / `.ps1` | Full PoC matrix (Phase 8) → `artifacts/phase8-smoke-report.*` |
 | `check-app1-identical-src.sh` / `.ps1` | Enforce single shared app1 `src/` |

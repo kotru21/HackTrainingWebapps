@@ -78,7 +78,15 @@ export function createApp(pool: Pool, cfg: ScoreboardConfig): express.Express {
 
   app.get('/api/scoreboard', async (_req, res) => {
     const round = await getActiveRound(pool);
-    const teams = await computeScores(pool, cfg);
+    const [roundScores, matchScores] = await Promise.all([
+      computeScores(pool, cfg, { sinceRoundStart: true }),
+      computeScores(pool, cfg, { sinceRoundStart: false }),
+    ]);
+    const matchByTeam = new Map(matchScores.map((t) => [t.team, t.total]));
+    const teams = roundScores.map((t) => ({
+      ...t,
+      match_total: matchByTeam.get(t.team) ?? t.total,
+    }));
     const timeline = await pool.query<{
       submitter_team: string;
       vuln_id: string | null;
@@ -111,7 +119,7 @@ export function createApp(pool: Pool, cfg: ScoreboardConfig): express.Express {
   });
 
   app.get('/api/round', async (_req, res) => {
-    await ensureRound(pool, Object.keys(cfg.team_tokens));
+    // Read-only: round creation is startup / POST /api/internal/tick / POST /api/round/next.
     const round = await getActiveRound(pool);
     if (!round) {
       res.status(404).json({ error: 'no round' });
@@ -191,6 +199,7 @@ export function createApp(pool: Pool, cfg: ScoreboardConfig): express.Express {
     res.json({ status: 'recorded' });
   });
 
+  /** Manual/judge tick bump. The scoreboard process also advances ticks on its own timer. */
   app.post('/api/internal/tick', async (req, res) => {
     const token = req.header('X-Judge-Token');
     if (token !== cfg.judge_token) {
@@ -263,9 +272,9 @@ const BOARD_HTML = `<!DOCTYPE html>
       border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
     .panel h2{margin:0;padding:14px 18px;font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
       color:var(--muted);border-bottom:1px solid var(--border)}
-    /* Одинаковые фиксированные треки во всех строках → колонки ATK/DEF/Total выровнены.
+    /* Одинаковые фиксированные треки во всех строках → колонки ATK/DEF/Total/Match выровнены.
        Total фиксированной ширины (не auto), иначе большое число сдвигало бы соседние колонки. */
-    .row{display:grid;grid-template-columns:42px minmax(0,1fr) 84px 84px minmax(120px,1.2fr) 132px;align-items:center;
+    .row{display:grid;grid-template-columns:42px minmax(0,1fr) 84px 84px minmax(100px,1.1fr) 120px 88px;align-items:center;
       gap:clamp(8px,1.4vw,18px);padding:15px 18px;border-bottom:1px solid var(--border);transition:background .25s ease}
     .row:last-child{border-bottom:0}
     .row.head{padding:9px 18px;font-size:.66rem;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
@@ -281,9 +290,10 @@ const BOARD_HTML = `<!DOCTYPE html>
     .meter{height:8px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);overflow:hidden}
     .meter>span{display:block;height:100%;border-radius:999px;transition:width .5s ease}
     .sla .pct{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
-    .total{font-family:var(--mono);font-weight:800;font-size:clamp(1.3rem,2.3vw,1.85rem);text-align:right;
+    .total{font-family:var(--mono);font-weight:800;font-size:clamp(1.2rem,2.1vw,1.7rem);text-align:right;
       color:var(--ok);text-shadow:0 0 14px rgba(34,197,94,.32)}
     .row.lead .total{text-shadow:0 0 22px rgba(34,197,94,.5)}
+    .match{font-family:var(--mono);font-size:.92rem;text-align:right;color:var(--faint)}
     .flash{animation:flash .9s ease}
     @keyframes flash{0%{background:rgba(34,197,94,.22)}100%{background:transparent}}
     ul.tl{list-style:none;margin:0;padding:4px 0;max-height:72vh;overflow:auto}
@@ -338,8 +348,9 @@ const BOARD_HTML = `<!DOCTYPE html>
       <h2>Рейтинг</h2>
       <div class="row head">
         <span style="text-align:center">#</span><span>Команда</span>
-        <span style="text-align:right">Атака</span><span style="text-align:right">Защита</span>
-        <span>SLA</span><span style="text-align:right">Итог</span>
+        <span style="text-align:right">Атака (раунд)</span><span style="text-align:right">Защита (раунд)</span>
+        <span>SLA</span><span style="text-align:right">Итог (раунд)</span>
+        <span style="text-align:right">Матч</span>
       </div>
       <div id="teams"><div class="empty">Ожидание команд…</div></div>
     </section>
@@ -373,7 +384,8 @@ const BOARD_HTML = `<!DOCTYPE html>
 
       var round = r.round;
       document.getElementById('roundInfo').innerHTML = round
-        ? esc(round.n) + ' <span class="k">·</span> тик ' + esc(round.current_tick)
+        ? esc(round.n) + ' <span class="k">·</span> счёт раунда'
+          + ' <span class="k">·</span> тик ' + esc(round.current_tick)
           + ' <span class="k">·</span> ' + esc(String(round.attacker_team).toUpperCase())
           + ' <span class="arrow">→</span> ' + esc(String(round.defender_team).toUpperCase())
         : 'нет активного раунда';
@@ -385,6 +397,7 @@ const BOARD_HTML = `<!DOCTYPE html>
         var lead = i === 0 && (t.total || 0) > 0 ? ' lead' : '';
         var changed = prevTotals[t.team] != null && prevTotals[t.team] !== t.total ? ' flash' : '';
         prevTotals[t.team] = t.total;
+        var matchTotal = t.match_total != null ? t.match_total : t.total;
         return '<div class="row' + lead + changed + '" style="--tc:' + tc + '">'
           + '<div class="rank">' + (i + 1) + '</div>'
           + '<div class="team"><span class="tname">' + esc(t.team) + '</span></div>'
@@ -393,6 +406,7 @@ const BOARD_HTML = `<!DOCTYPE html>
           + '<div class="sla"><div class="meter"><span style="width:' + sla + '%;background:' + slaColor(sla) + '"></span></div>'
           + '<span class="pct">' + sla + '% SLA</span></div>'
           + '<div class="total">' + fmt(t.total) + '</div>'
+          + '<div class="match">' + fmt(matchTotal) + '</div>'
           + '</div>';
       }).join('') || '<div class="empty">Ожидание команд…</div>';
 

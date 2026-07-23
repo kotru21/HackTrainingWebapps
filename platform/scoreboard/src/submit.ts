@@ -159,62 +159,85 @@ export async function submitFlag(
     return { status: 'expired', points: 0, vuln_id: row.vuln_id };
   }
 
-  const dup = await pool.query(
-    `SELECT id FROM submissions WHERE submitter_team = $1 AND flag = $2`,
-    [team, flag],
-  );
-  if ((dup.rowCount ?? 0) > 0) {
-    return { status: 'duplicate', points: 0, vuln_id: row.vuln_id };
-  }
-
   const basePoints = cfg.flag_values[row.vuln_id] ?? 100;
   const round = await getActiveRound(pool);
-  const priorBlood = await pool.query(
-    `SELECT id FROM submissions
-     WHERE status = 'accepted' AND vuln_id = $1
-       AND ($2::timestamptz IS NULL OR submitted_at >= $2)
-     LIMIT 1`,
-    [row.vuln_id, round?.started_at ?? null],
-  );
-  const firstBlood = (priorBlood.rowCount ?? 0) === 0;
-  const points = firstBlood
-    ? Math.round(basePoints * cfg.first_blood_multiplier)
-    : basePoints;
 
+  // Accept path runs in one transaction, serialized per vuln by an advisory lock, so:
+  //  (a) first blood is decided exactly once even under concurrent submits, and
+  //  (b) a prior non-accepted attempt for this (team, flag) — e.g. a stale 'wrong_target'
+  //      recorded before a role swap — is promoted to 'accepted' rather than permanently
+  //      blocking a later legitimate capture via the UNIQUE (submitter_team, flag) slot.
+  const client = await pool.connect();
   try {
-    await pool.query(
-      `INSERT INTO submissions
-         (submitter_team, flag, vuln_id, points, status, first_blood, src_ip)
-       VALUES ($1, $2, $3, $4, 'accepted', $5, $6)`,
-      [team, flag, row.vuln_id, points, firstBlood, srcIp],
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`vuln:${row.vuln_id}`]);
+
+    const dup = await client.query(
+      `SELECT id FROM submissions
+        WHERE submitter_team = $1 AND flag = $2 AND status = 'accepted'`,
+      [team, flag],
     );
-  } catch (err: unknown) {
-    const code = (err as { code?: string }).code;
-    if (code === '23505') {
+    if ((dup.rowCount ?? 0) > 0) {
+      await client.query('COMMIT');
       return { status: 'duplicate', points: 0, vuln_id: row.vuln_id };
     }
-    throw err;
-  }
 
-  log.info(
-    {
-      event: 'flag.submit',
-      team,
+    const priorBlood = await client.query(
+      `SELECT id FROM submissions
+        WHERE status = 'accepted' AND vuln_id = $1
+          AND ($2::timestamptz IS NULL OR submitted_at >= $2)
+        LIMIT 1`,
+      [row.vuln_id, round?.started_at ?? null],
+    );
+    const firstBlood = (priorBlood.rowCount ?? 0) === 0;
+    const points = firstBlood
+      ? Math.round(basePoints * cfg.first_blood_multiplier)
+      : basePoints;
+
+    const inserted = await client.query(
+      `INSERT INTO submissions
+         (submitter_team, flag, vuln_id, points, status, first_blood, src_ip)
+       VALUES ($1, $2, $3, $4, 'accepted', $5, $6)
+       ON CONFLICT (submitter_team, flag) DO UPDATE
+         SET vuln_id = EXCLUDED.vuln_id, points = EXCLUDED.points, status = 'accepted',
+             first_blood = EXCLUDED.first_blood, src_ip = EXCLUDED.src_ip,
+             submitted_at = NOW()
+         WHERE submissions.status <> 'accepted'
+       RETURNING id`,
+      [team, flag, row.vuln_id, points, firstBlood, srcIp],
+    );
+    await client.query('COMMIT');
+
+    if ((inserted.rowCount ?? 0) === 0) {
+      // A concurrent submit already accepted this exact flag for this team.
+      return { status: 'duplicate', points: 0, vuln_id: row.vuln_id };
+    }
+
+    log.info(
+      {
+        event: 'flag.submit',
+        team,
+        status: 'accepted',
+        vuln_id: row.vuln_id,
+        points,
+        first_blood: firstBlood,
+        victim_team: row.team,
+        srcIp,
+        flagFp: flagFingerprint(flag),
+      },
+      'flag accepted',
+    );
+
+    return {
       status: 'accepted',
-      vuln_id: row.vuln_id,
       points,
+      vuln_id: row.vuln_id,
       first_blood: firstBlood,
-      victim_team: row.team,
-      srcIp,
-      flagFp: flagFingerprint(flag),
-    },
-    'flag accepted',
-  );
-
-  return {
-    status: 'accepted',
-    points,
-    vuln_id: row.vuln_id,
-    first_blood: firstBlood,
-  };
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

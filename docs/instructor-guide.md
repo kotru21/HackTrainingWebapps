@@ -111,8 +111,9 @@ PowerShell (Windows):
 
 Подробности флагов скриптов — [`scripts/README.md`](../scripts/README.md).
 
-`swap-roles.sh` меняет: кто attacker/defender в labels/`rounds` (через `POST /api/round/next`),
-направление NetworkPolicy (attacker → defender app HTTP only), пишет `artifacts/round-state.env`.
+`swap-roles.sh` берёт роли из scoreboard (`GET /api/round` → `POST /api/round/next`), затем
+синхронизирует labels namespace и направление NetworkPolicy (attacker → defender app HTTP only),
+пишет `artifacts/round-state.env`. Namespace labels сами по себе не источник правды.
 `reset-round.sh` возвращает уязвимый baseline (vulnerable image + wipe workspace + rollout), цель < 60 c.
 
 ---

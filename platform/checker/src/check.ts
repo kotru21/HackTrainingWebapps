@@ -39,7 +39,8 @@ export async function checkBilling(
 ): Promise<CheckResult> {
   const base = stand.base_url.replace(/\/$/, '');
   const started = Date.now();
-  const user = `sla_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+  // Stable canary — register once; subsequent ticks get 409 and proceed to login.
+  const user = 'sla_canary';
   const password = 'sla-pass-1';
 
   try {
@@ -60,7 +61,7 @@ export async function checkBilling(
       body: JSON.stringify({ username: user, password }),
       timeoutMs,
     });
-    if (!reg.ok) {
+    if (!reg.ok && reg.status !== 409) {
       return {
         status: 'mumble',
         latency_ms: Date.now() - started,

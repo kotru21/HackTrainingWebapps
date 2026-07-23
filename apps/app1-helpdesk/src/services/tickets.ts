@@ -85,10 +85,12 @@ export async function listAttachments(ticketId: number): Promise<Attachment[]> {
 }
 
 export async function listAdminSecrets(): Promise<{ id: number; name: string; value: string }[]> {
-  // leak_flag is the CFG-LEAK scoring flag, capturable only through the /internal/debug
-  // leak — exclude it here so the admin-access path (CFG-JWT) does not also hand it out.
+  // Each scoring flag must be capturable only through its own vuln, so the admin-access
+  // path (CFG-JWT via round_flag) does not also hand out other vulns' flags:
+  //   - leak_flag → CFG-LEAK, only via GET /internal/debug
+  //   - rce_flag  → CFG-RCE,  only via the EJS RCE reading FLAG_FILE_PATH
   const result = await query<{ id: number; name: string; value: string }>(
-    "SELECT id, name, value FROM admin_secrets WHERE name <> 'leak_flag' ORDER BY id",
+    "SELECT id, name, value FROM admin_secrets WHERE name NOT IN ('leak_flag', 'rce_flag') ORDER BY id",
   );
   return result.rows;
 }

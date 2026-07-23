@@ -82,11 +82,13 @@ POST /api/submit
   200: { "status": "duplicate"|"expired"|"own_flag"|"invalid", "points": 0 }
   429: троттлинг (см. анти-чит)
 
-GET  /api/scoreboard            → live-табло (JSON): по командам attack/defense/SLA/total, тайм-лайн
-GET  /api/round                 → текущий раунд/тик/оставшееся время
+GET  /api/scoreboard            → live-табло (JSON): attack/defense/SLA/total **за текущий раунд**,
+                                  плюс `match_total` (кумулятив матча без фильтра `started_at`), тайм-лайн
+GET  /api/round                 → текущий раунд/тик/оставшееся время (**только чтение**; 404 если нет раунда)
 POST /api/round/next  (судья)   → перейти к следующему раунду (дёргается swap-roles.sh)
+POST /api/internal/tick (судья) → ручной bump тика; основной часовщик — сам scoreboard (`setInterval`)
 GET  /healthz /readyz
-Web UI: '/' — авто-обновляемое табло (poll GET /api/scoreboard раз в 5 c)
+Web UI: '/' — авто-обновляемое табло (poll GET /api/scoreboard раз в 3 c); колонки помечены «(раунд)»
 ```
 
 Таблицы БД scoreboard:
@@ -96,6 +98,12 @@ Web UI: '/' — авто-обновляемое табло (poll GET /api/scoreb
 - `rounds(id, n, attacker_team, defender_team, started_at, ended_at, current_tick)`
 - `sla_samples(..., excluded, detail jsonb)` — расширения для разбора/исключений
 
+**Часы тика:** `rounds.current_tick` двигает только scoreboard (таймер + опциональный `POST /api/internal/tick`).
+`flag-planter` и `checker` читают тик через `GET /api/round` и сажают/тегируют под него — так
+`planted_flags.tick` и `sla_samples.tick` согласованы для форензики.
+
+**Роли раунда:** scoreboard (таблица `rounds`, PVC) — источник правды; `swap-roles.sh` читает
+`GET /api/round`, делает `POST /api/round/next`, затем приводит labels/NetworkPolicy к ответу.
 ---
 
 ## 6. Анти-чит
@@ -132,5 +140,5 @@ flag_values:
   A10-SSRF: 200
 ```
 
-Колонка `rounds.current_tick` и поля `sla_samples.excluded` / `detail` — рабочие расширения схемы
-для тика плантара/чекера и разбора; контракт API §5 не меняют.
+Колонка `rounds.current_tick` — авторитетные «часы» матча (двигает scoreboard). Поля
+`sla_samples.excluded` / `detail` — рабочие расширения схемы для разбора; контракт API §5 не меняют.

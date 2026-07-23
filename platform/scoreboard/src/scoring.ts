@@ -22,15 +22,31 @@ export async function getActiveRound(client: Pool | PoolClient): Promise<RoundRo
 export async function ensureRound(pool: Pool, teams: string[]): Promise<RoundRow> {
   const existing = await getActiveRound(pool);
   if (existing) return existing;
-  const a = teams[0] ?? 'a';
-  const b = teams[1] ?? 'b';
-  // Round 1: the first team (team-a) defends, the second attacks — matches
-  // round-roles.yaml and the "team-a defends first" match setup. swap-roles flips it.
+
+  const last = await pool.query<RoundRow>(
+    `SELECT id, n, attacker_team, defender_team, started_at, ended_at, current_tick
+     FROM rounds ORDER BY n DESC LIMIT 1`,
+  );
+
+  let attacker: string;
+  let defender: string;
+  if (last.rows[0]) {
+    // Ended round without successor (crash/restart): continue with flipped roles.
+    attacker = last.rows[0].defender_team;
+    defender = last.rows[0].attacker_team;
+  } else {
+    // Fresh DB only: team-a defends first (matches round-roles.yaml).
+    const a = teams[0] ?? 'a';
+    const b = teams[1] ?? 'b';
+    attacker = b;
+    defender = a;
+  }
+
   const r = await pool.query<RoundRow>(
     `INSERT INTO rounds (n, attacker_team, defender_team, current_tick)
-     VALUES (1, $1, $2, 0)
+     VALUES ((SELECT COALESCE(MAX(n), 0) + 1 FROM rounds), $1, $2, 0)
      RETURNING id, n, attacker_team, defender_team, started_at, ended_at, current_tick`,
-    [b, a],
+    [attacker, defender],
   );
   return r.rows[0];
 }
@@ -73,10 +89,23 @@ export interface TeamScore {
   total: number;
   up_ticks: number;
   total_ticks: number;
+  /** Cumulative match total (all rounds); set by /api/scoreboard merge. */
+  match_total?: number;
 }
 
-export async function computeScores(pool: Pool, cfg: ScoreboardConfig): Promise<TeamScore[]> {
+export interface ComputeScoresOpts {
+  /** When true (default), filter attack/SLA by current round started_at. */
+  sinceRoundStart?: boolean;
+}
+
+export async function computeScores(
+  pool: Pool,
+  cfg: ScoreboardConfig,
+  opts: ComputeScoresOpts = {},
+): Promise<TeamScore[]> {
+  const sinceRoundStart = opts.sinceRoundStart !== false;
   const round = await getActiveRound(pool);
+  const since = sinceRoundStart ? (round?.started_at ?? null) : null;
   const teams = Object.keys(cfg.team_tokens);
   const scores: TeamScore[] = [];
 
@@ -85,7 +114,7 @@ export async function computeScores(pool: Pool, cfg: ScoreboardConfig): Promise<
       `SELECT COALESCE(SUM(points), 0)::text AS sum FROM submissions
        WHERE submitter_team = $1 AND status = 'accepted'
          AND ($2::timestamptz IS NULL OR submitted_at >= $2)`,
-      [team, round?.started_at ?? null],
+      [team, since],
     );
     const attack = Number(attackRes.rows[0]?.sum ?? 0);
 
@@ -96,21 +125,21 @@ export async function computeScores(pool: Pool, cfg: ScoreboardConfig): Promise<
        FROM sla_samples
        WHERE team = $1
          AND ($2::timestamptz IS NULL OR sampled_at >= $2)`,
-      [team, round?.started_at ?? null],
+      [team, since],
     );
     const up = Number(slaRes.rows[0]?.up ?? 0);
     const total = Number(slaRes.rows[0]?.total ?? 0);
     const slaPct = total > 0 ? up / total : 1;
     const slaDefense = Math.round(slaPct * cfg.defense_weight);
 
-    // Defended vulns: a fixed flag_value bonus for each vuln the team is CURRENTLY keeping
-    // closed — judged by the latest expired flag for that vuln on their own stand being
-    // uncaptured. Counted once per vuln_id (not per tick), so defense is bounded by the
-    // sum of flag_values and does not balloon over a long round. Only the round's defender
+    // Defended vulns: always per-round only (not folded into match-wide totals).
+    // Fixed flag_value bonus for each vuln the team is CURRENTLY keeping closed —
+    // judged by the latest expired flag for that vuln on their own stand being
+    // uncaptured. Counted once per vuln_id (not per tick). Only the round's defender
     // is credited: the attacker's stand is unreachable to the opponent by NetworkPolicy,
     // so its flags always expire uncaptured and must not score for free.
     let defended = 0;
-    if (round && team === round.defender_team) {
+    if (sinceRoundStart && round && team === round.defender_team) {
       const defRes = await pool.query<{ vuln_id: string }>(
         `WITH latest AS (
            SELECT DISTINCT ON (vuln_id) vuln_id, flag

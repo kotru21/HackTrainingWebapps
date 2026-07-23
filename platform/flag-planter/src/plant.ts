@@ -39,6 +39,13 @@ async function plantBillingStand(
   }
   const pool = new Pool({ connectionString: stand.database_url });
   try {
+    // Prune checker canary invoices so SLA traffic does not bury challenge rows.
+    await pool.query(
+      `DELETE FROM invoices
+       WHERE title = 'SLA invoice'
+         AND created_at < NOW() - INTERVAL '10 minutes'`,
+    );
+
     const plants: Array<{ vuln_id: string; run: (flag: string) => Promise<void> }> = [
       {
         vuln_id: 'A01-IDOR',
@@ -189,15 +196,22 @@ async function plantMetadataOnce(
   log.info({ event: 'plant.ok', team, vuln_id: 'A10-SSRF', tick }, 'planted SSRF flag');
 }
 
+/** Last tick we successfully planted for — skip duplicate plants if loop races the clock. */
+let lastPlantedTick: number | null = null;
+
 export async function runTick(cfg: PlanterConfig): Promise<number> {
-  const tickRes = await fetch(`${cfg.scoreboard_url}/api/internal/tick`, {
-    method: 'POST',
-    headers: { 'X-Judge-Token': cfg.judge_token },
-  });
-  if (!tickRes.ok) {
-    throw new Error(`tick bump failed: ${tickRes.status}`);
+  // Scoreboard owns the clock; planter only reads current_tick and plants under it.
+  const roundRes = await fetch(`${cfg.scoreboard_url}/api/round`);
+  if (!roundRes.ok) {
+    throw new Error(`round fetch failed: ${roundRes.status}`);
   }
-  const { current_tick: tick } = (await tickRes.json()) as { current_tick: number };
+  const round = (await roundRes.json()) as { current_tick: number };
+  const tick = round.current_tick;
+  if (lastPlantedTick === tick) {
+    log.info({ event: 'tick.skip', tick }, 'already planted for this tick');
+    return tick;
+  }
+
   const expiresAt = new Date(
     Date.now() + cfg.flag_ttl_ticks * cfg.tick_seconds * 1000,
   ).toISOString();
@@ -216,5 +230,6 @@ export async function runTick(cfg: PlanterConfig): Promise<number> {
     await plantMetadataOnce(cfg, metadataTeam, tick, expiresAt);
   }
 
+  lastPlantedTick = tick;
   return tick;
 }

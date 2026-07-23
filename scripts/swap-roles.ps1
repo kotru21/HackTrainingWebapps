@@ -14,16 +14,45 @@ if ($bash) {
   exit $LASTEXITCODE
 }
 
-Write-Host '==> Native PowerShell swap-roles'
-$roleA = kubectl get ns team-a -o jsonpath='{.metadata.labels.role}'
-if (-not $roleA) { $roleA = 'defender' }
-if ($roleA -eq 'defender') {
-  $newA, $newB, $attacker, $defender = 'attacker', 'defender', 'a', 'b'
-} else {
-  $newA, $newB, $attacker, $defender = 'defender', 'attacker', 'b', 'a'
+Write-Host '==> Native PowerShell swap-roles (scoreboard is role SoT)'
+
+try {
+  $cur = Invoke-RestMethod -Method Get -Uri "$ScoreboardUrl/api/round"
+} catch {
+  Write-Error "cannot read $ScoreboardUrl/api/round — scoreboard is the role source of truth: $_"
+  exit 1
 }
-Write-Host "Swap → team-a=$newA team-b=$newB attacker=$attacker defender=$defender"
-if ($DryRun) { exit 0 }
+
+Write-Host "Scoreboard round $($cur.n) roles: attacker=$($cur.attacker_team) defender=$($cur.defender_team)"
+Write-Host "Swap → attacker=$($cur.defender_team) defender=$($cur.attacker_team)"
+if ($DryRun) {
+  Write-Host "DRY-RUN: would POST $ScoreboardUrl/api/round/next then label NetPols from response"
+  exit 0
+}
+
+try {
+  $r = Invoke-RestMethod -Method Post -Uri "$ScoreboardUrl/api/round/next" -Headers @{ 'X-Judge-Token' = $JudgeToken }
+  Write-Host "scoreboard: $($r | ConvertTo-Json -Compress)"
+} catch {
+  Write-Error "POST /api/round/next failed — refusing to patch k8s out of sync: $_"
+  exit 1
+}
+
+$attacker = [string]$r.attacker_team
+$defender = [string]$r.defender_team
+$n = $r.n
+if (-not $attacker -or -not $defender) {
+  Write-Error "/api/round/next missing roles"
+  exit 1
+}
+
+if ($defender -eq 'a') {
+  $newA, $newB = 'defender', 'attacker'
+} else {
+  $newA, $newB = 'attacker', 'defender'
+}
+
+Write-Host "Syncing k8s → team-a=$newA team-b=$newB (attacker=$attacker defender=$defender)"
 
 kubectl label ns team-a "role=$newA" team=a name=team-a --overwrite
 kubectl label ns team-b "role=$newB" team=b name=team-b --overwrite
@@ -43,15 +72,6 @@ $patchEgress = {
 & $patchFrom "team-$attacker" 'disabled'
 & $patchEgress "team-$attacker" $defender
 & $patchEgress "team-$defender" 'disabled'
-
-try {
-  $r = Invoke-RestMethod -Method Post -Uri "$ScoreboardUrl/api/round/next" -Headers @{ 'X-Judge-Token' = $JudgeToken }
-  Write-Host "scoreboard: $($r | ConvertTo-Json -Compress)"
-  $n = $r.n
-} catch {
-  Write-Warning "scoreboard unreachable: $_"
-  $n = 2
-}
 
 $stateDir = Join-Path $Root 'artifacts'
 New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
