@@ -66,7 +66,8 @@ $images = @(
   "hacktraining/scoreboard:local",
   "hacktraining/flag-planter:local",
   "hacktraining/checker:local",
-  "hacktraining/internal-metadata:local"
+  "hacktraining/internal-metadata:local",
+  "hacktraining/code-server:local"
 )
 foreach ($img in $images) {
   docker image inspect $img 2>$null | Out-Null

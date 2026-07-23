@@ -87,9 +87,12 @@ done
 
 **Внешние образы** (в изолированной сети их тоже надо импортировать заранее, пока есть интернет —
 на машине с доступом `docker pull`, затем `docker save | k3s ctr images import`):
-`codercom/code-server:4.96.4`, `postgres:16-alpine`, `busybox:1.36`,
-`grafana/grafana`, `grafana/loki`, `grafana/promtail`, а также образ контроллера
-ingress-nginx (`registry.k8s.io/ingress-nginx/controller` + `.../kube-webhook-certgen`).
+`postgres:16-alpine`, `busybox:1.36`, `grafana/grafana`, `grafana/loki`,
+`grafana/promtail`, а также образ контроллера ingress-nginx
+(`registry.k8s.io/ingress-nginx/controller` + `.../kube-webhook-certgen`).
+IDE: `hacktraining/code-server:local` собирается из `codercom/code-server:4.109.5`
+(`platform/code-server/Dockerfile`, офлайн ESLint/Prettier/GitLens) через
+`scripts/build-and-load.sh`.
 
 ### 4. Реальные секреты (заменить учебные)
 

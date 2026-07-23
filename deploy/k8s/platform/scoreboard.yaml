@@ -95,6 +95,9 @@ metadata:
   namespace: platform
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    # TLS via ingress-nginx default cert; force-ssl-redirect needed without tls: block.
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
   rules:

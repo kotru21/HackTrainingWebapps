@@ -42,7 +42,7 @@ spec:
             - name: GF_USERS_ALLOW_SIGN_UP
               value: "false"
             - name: GF_SERVER_ROOT_URL
-              value: http://grafana.hack.local/
+              value: https://grafana.hack.local/
             - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
               value: /var/lib/grafana/dashboards/attack-timeline.json
           volumeMounts:
@@ -102,7 +102,22 @@ spec:
           configMap:
             name: grafana-dashboard-flag-submissions
         - name: data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: grafana-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
 ---
 apiVersion: v1
 kind: Service
@@ -122,6 +137,10 @@ kind: Ingress
 metadata:
   name: grafana
   namespace: platform
+  annotations:
+    # TLS via ingress-nginx default cert; force-ssl-redirect needed without tls: block.
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
   rules:

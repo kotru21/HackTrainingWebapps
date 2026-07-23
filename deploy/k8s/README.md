@@ -46,6 +46,7 @@ docker build -t hacktraining/scoreboard:local -f platform/scoreboard/Dockerfile 
 docker build -t hacktraining/flag-planter:local -f platform/flag-planter/Dockerfile .
 docker build -t hacktraining/checker:local -f platform/checker/Dockerfile .
 docker build -t hacktraining/internal-metadata:local -f platform/internal-metadata/Dockerfile .
+docker build -t hacktraining/code-server:local -f platform/code-server/Dockerfile .
 ```
 
 ## NetworkPolicy contract

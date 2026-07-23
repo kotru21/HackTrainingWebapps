@@ -22,8 +22,19 @@ spec:
       serviceAccountName: team-operator
       containers:
         - name: code-server
-          image: codercom/code-server:4.96.4
-          args: ["--auth", "password", "--bind-addr", "0.0.0.0:8080", "/workspace"]
+          image: hacktraining/code-server:local
+          imagePullPolicy: IfNotPresent
+          # --extensions-dir points at the image-baked ESLint/Prettier/GitLens so the
+          # code-server-data PVC (settings/state under ~/.local/share/code-server) does
+          # not shadow them.
+          args:
+            - --auth
+            - password
+            - --bind-addr
+            - 0.0.0.0:8080
+            - --extensions-dir
+            - /opt/hacktraining/extensions
+            - /workspace
           ports:
             - name: http
               containerPort: 8080
@@ -34,6 +45,10 @@ spec:
           volumeMounts:
             - name: workspace
               mountPath: /workspace
+            # Persist settings/state across pod restarts (XDG data dir). Extensions live
+            # in the image at /opt/hacktraining/extensions (see Dockerfile).
+            - name: code-server-data
+              mountPath: /home/coder/.local/share/code-server
           readinessProbe:
             httpGet:
               path: /
@@ -51,6 +66,9 @@ spec:
         - name: workspace
           persistentVolumeClaim:
             claimName: workspace
+        - name: code-server-data
+          persistentVolumeClaim:
+            claimName: code-server-data
 ---
 apiVersion: v1
 kind: Service

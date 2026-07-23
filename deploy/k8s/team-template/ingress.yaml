@@ -6,6 +6,10 @@ metadata:
     app.kubernetes.io/component: ingress
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # TLS terminates via ingress-nginx --default-ssl-certificate (hack-local-tls); no
+    # per-Ingress tls: block. force-ssl-redirect is required for HTTP→HTTPS without tls:.
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     # code-server (IDE host) loads its editor over a long-lived WebSocket. The default
     # ingress-nginx read/send timeout (60s) drops that connection, so the IDE authenticates
     # but then renders a blank page. Raise the timeouts so the workbench stays connected.

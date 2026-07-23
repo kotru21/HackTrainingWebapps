@@ -96,18 +96,29 @@ if [[ -z "$(kubectl -n ingress-nginx get endpoints ingress-nginx-controller-admi
   exit 1
 fi
 
-# --- TLS: one self-signed wildcard cert for *.hack.local, served as the ingress-nginx
-# default certificate so every host (scoreboard/grafana/app/IDE) gets HTTPS with no
-# per-Ingress tls block. Fixes code-server's "insecure context" warning. Cert is
-# generated once and reused (artifacts/tls). Set GEN_TLS=0 to stay HTTP-only.
+# --- TLS: self-signed cert covering hack.local + one-level wildcards, served as the
+# ingress-nginx default certificate so every host gets HTTPS with no per-Ingress tls
+# block. X.509 wildcards are single-label only: *.hack.local covers scoreboard/grafana
+# but NOT team-a.app.hack.local / team-a.ide.hack.local — those need *.app / *.ide.
+# Cert is generated once and reused (artifacts/tls); regenerates if SANs are stale.
+# Set GEN_TLS=0 to stay HTTP-only.
 if [[ "$GEN_TLS" == "1" ]]; then
+  TLS_SAN="DNS:hack.local,DNS:*.hack.local,DNS:*.app.hack.local,DNS:*.ide.hack.local"
+  NEED_TLS_GEN=0
   if [[ ! -f "$TLS_DIR/tls.crt" || ! -f "$TLS_DIR/tls.key" ]]; then
-    echo "==> Generating self-signed *.hack.local certificate"
+    NEED_TLS_GEN=1
+  elif ! openssl x509 -in "$TLS_DIR/tls.crt" -noout -text 2>/dev/null \
+        | grep -q 'DNS:\*\.app\.hack\.local'; then
+    echo "==> Existing TLS cert lacks *.app.hack.local SAN — regenerating"
+    NEED_TLS_GEN=1
+  fi
+  if [[ "$NEED_TLS_GEN" == "1" ]]; then
+    echo "==> Generating self-signed hack.local certificate ($TLS_SAN)"
     mkdir -p "$TLS_DIR"
     openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
       -keyout "$TLS_DIR/tls.key" -out "$TLS_DIR/tls.crt" \
       -subj "/O=HackTraining/CN=hack.local" \
-      -addext "subjectAltName=DNS:hack.local,DNS:*.hack.local" >/dev/null 2>&1
+      -addext "subjectAltName=$TLS_SAN" >/dev/null 2>&1
     chmod 600 "$TLS_DIR/tls.key"
   fi
   echo "==> Installing TLS cert as ingress-nginx default certificate"

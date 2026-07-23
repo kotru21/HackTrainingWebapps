@@ -18,6 +18,7 @@ ALL_IMAGES=(
   "flag-planter             platform/flag-planter/Dockerfile"
   "checker                  platform/checker/Dockerfile"
   "internal-metadata        platform/internal-metadata/Dockerfile"
+  "code-server              platform/code-server/Dockerfile"
 )
 
 # Select the subset to build. Platform images are always needed; stand images depend on
