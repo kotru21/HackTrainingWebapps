@@ -85,8 +85,10 @@ export async function listAttachments(ticketId: number): Promise<Attachment[]> {
 }
 
 export async function listAdminSecrets(): Promise<{ id: number; name: string; value: string }[]> {
+  // leak_flag is the CFG-LEAK scoring flag, capturable only through the /internal/debug
+  // leak — exclude it here so the admin-access path (CFG-JWT) does not also hand it out.
   const result = await query<{ id: number; name: string; value: string }>(
-    'SELECT id, name, value FROM admin_secrets ORDER BY id',
+    "SELECT id, name, value FROM admin_secrets WHERE name <> 'leak_flag' ORDER BY id",
   );
   return result.rows;
 }

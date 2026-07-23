@@ -110,16 +110,20 @@ async function plantHelpdeskStand(
   if (!stand.database_url) return;
   const pool = new Pool({ connectionString: stand.database_url });
   try {
-    // Both helpdesk flags are delivered through the stand's own DB (the planter has no
-    // filesystem access to the app pod across namespaces). CFG-JWT is read from
+    // All three helpdesk flags are delivered through the stand's own DB (the planter has
+    // no filesystem access to the app pod across namespaces). CFG-JWT is read from
     // admin_secrets directly; CFG-RCE is mirrored to FLAG_FILE_PATH by the app's
-    // flag-mirror loop and read via the ejs RCE.
+    // flag-mirror loop and read via the ejs RCE; CFG-LEAK is surfaced by the app's
+    // /internal/debug endpoint (leak_flag is excluded from the admin secrets listing so
+    // it is only capturable through the debug leak, not the admin-access path).
     const jwtFlag = generateFlag();
     const rceFlag = generateFlag();
+    const leakFlag = generateFlag();
     await pool.query(
-      `INSERT INTO admin_secrets (name, value) VALUES ('round_flag', $1), ('rce_flag', $2)
+      `INSERT INTO admin_secrets (name, value)
+       VALUES ('round_flag', $1), ('rce_flag', $2), ('leak_flag', $3)
        ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value`,
-      [jwtFlag, rceFlag],
+      [jwtFlag, rceFlag, leakFlag],
     );
     await registerPlant(cfg, {
       flag: jwtFlag,
@@ -137,8 +141,16 @@ async function plantHelpdeskStand(
       tick,
       expires_at: expiresAt,
     });
+    await registerPlant(cfg, {
+      flag: leakFlag,
+      team: stand.team,
+      service: stand.service,
+      vuln_id: 'CFG-LEAK',
+      tick,
+      expires_at: expiresAt,
+    });
     log.info(
-      { event: 'plant.ok', team: stand.team, vuln_id: 'CFG-RCE', tick },
+      { event: 'plant.ok', team: stand.team, vuln_id: 'CFG-LEAK', tick },
       'planted helpdesk flags',
     );
   } finally {
