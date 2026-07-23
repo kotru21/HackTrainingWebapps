@@ -36,6 +36,20 @@ spec:
               if [ -z "$(ls -A /workspace 2>/dev/null)" ]; then
                 echo "seeding workspace from ${STAND_APP_DIR}"
                 cp -a "${STAND_APP_DIR}/." /workspace/
+                # Make the workspace self-sufficient for the code-server TS language server.
+                # The stand's out-of-tree deps (tsconfig.base.json, @hacktraining/shared)
+                # live at the image root, outside STAND_APP_DIR, so the IDE alone can't
+                # resolve them — causing esModuleInterop / 'cannot find module' errors.
+                # Editor-only: the running app resolves these fine from the image root.
+                if [ -d /packages/shared ]; then
+                  rm -rf /workspace/node_modules/@hacktraining/shared
+                  mkdir -p /workspace/node_modules/@hacktraining
+                  cp -a /packages/shared/. /workspace/node_modules/@hacktraining/shared/
+                fi
+                if [ -f /tsconfig.base.json ] && [ -f /workspace/tsconfig.json ]; then
+                  cp -a /tsconfig.base.json /workspace/tsconfig.base.json
+                  node -e "const f='/workspace/tsconfig.json';const t=require(f);t.extends='./tsconfig.base.json';delete t.references;require('fs').writeFileSync(f,JSON.stringify(t,null,2))" 2>/dev/null || true
+                fi
                 echo "workspace seeded"
               else
                 echo "workspace not empty — keeping existing team edits"
