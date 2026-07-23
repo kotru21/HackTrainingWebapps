@@ -50,6 +50,10 @@ spec:
                   cp -a /tsconfig.base.json /workspace/tsconfig.base.json
                   node -e "const f='/workspace/tsconfig.json';const t=require(f);t.extends='./tsconfig.base.json';delete t.references;require('fs').writeFileSync(f,JSON.stringify(t,null,2))" 2>/dev/null || true
                 fi
+                # The app image runs as root, so the seeded files are root-owned; code-server
+                # runs as uid 1000 (coder) and could not save edits (EACCES). Make the tree
+                # writable so the defender can edit source and .env in the IDE.
+                chmod -R a+rwX /workspace 2>/dev/null || true
                 echo "workspace seeded"
               else
                 echo "workspace not empty — keeping existing team edits"
