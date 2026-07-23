@@ -24,11 +24,13 @@ export async function ensureRound(pool: Pool, teams: string[]): Promise<RoundRow
   if (existing) return existing;
   const a = teams[0] ?? 'a';
   const b = teams[1] ?? 'b';
+  // Round 1: the first team (team-a) defends, the second attacks — matches
+  // round-roles.yaml and the "team-a defends first" match setup. swap-roles flips it.
   const r = await pool.query<RoundRow>(
     `INSERT INTO rounds (n, attacker_team, defender_team, current_tick)
      VALUES (1, $1, $2, 0)
      RETURNING id, n, attacker_team, defender_team, started_at, ended_at, current_tick`,
-    [a, b],
+    [b, a],
   );
   return r.rows[0];
 }

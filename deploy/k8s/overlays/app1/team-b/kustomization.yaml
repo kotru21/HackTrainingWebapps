@@ -65,7 +65,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/ingress/0/from/0/namespaceSelector/matchLabels/team
-        value: a
+        value: disabled   # team-b attacks round 1 — its own stand takes no peer ingress
   - target:
       kind: NetworkPolicy
       name: allow-egress-to-opponent-app

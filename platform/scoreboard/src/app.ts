@@ -428,7 +428,8 @@ const BOARD_HTML = `<!DOCTYPE html>
         var d = await res.json();
         var st = d.status || 'error';
         var STMAP = { duplicate:'повтор', expired:'просрочен', own_flag:'свой флаг', invalid:'неверный флаг',
-          rate_limited:'лимит запросов', unauthorized:'нет доступа', team_mismatch:'чужой токен', error:'ошибка' };
+          wrong_target:'не цель раунда', rate_limited:'лимит запросов', unauthorized:'нет доступа',
+          team_mismatch:'чужой токен', error:'ошибка' };
         if (st === 'accepted'){
           msg.className = 'smsg ok';
           msg.textContent = '✓ принято  +' + fmt(d.points || 0)

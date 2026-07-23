@@ -10,6 +10,7 @@ export type SubmitStatus =
   | 'duplicate'
   | 'expired'
   | 'own_flag'
+  | 'wrong_target'
   | 'invalid';
 
 export interface SubmitResult {
@@ -106,6 +107,34 @@ export async function submitFlag(
       'own-flag attempt',
     );
     return { status: 'own_flag', points: 0, vuln_id: row.vuln_id };
+  }
+
+  // Strict alternating A/D: only the current round's defender stand is a valid target.
+  // A flag planted on any other stand (e.g. the attacker's own, or a stale round) does
+  // not score — prevents farming the wrong stand for attack points.
+  const roundRes = await pool.query<{ defender_team: string }>(
+    `SELECT defender_team FROM rounds WHERE ended_at IS NULL ORDER BY n DESC LIMIT 1`,
+  );
+  const defenderTeam = roundRes.rows[0]?.defender_team ?? null;
+  if (defenderTeam && row.team !== defenderTeam) {
+    await pool.query(
+      `INSERT INTO submissions (submitter_team, flag, vuln_id, points, status, src_ip)
+       VALUES ($1, $2, $3, 0, 'wrong_target', $4)
+       ON CONFLICT (submitter_team, flag) DO NOTHING`,
+      [team, flag, row.vuln_id, srcIp],
+    );
+    log.info(
+      {
+        event: 'flag.submit',
+        team,
+        status: 'wrong_target',
+        vuln_id: row.vuln_id,
+        srcIp,
+        flagFp: flagFingerprint(flag),
+      },
+      'flag not on the current defender stand',
+    );
+    return { status: 'wrong_target', points: 0, vuln_id: row.vuln_id };
   }
 
   const now = new Date();

@@ -73,7 +73,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/egress/0/to/0/namespaceSelector/matchLabels/team
-        value: b
+        value: disabled   # team-a defends round 1 — does not attack (swap-roles flips)
   - target:
       kind: Ingress
       name: stand
