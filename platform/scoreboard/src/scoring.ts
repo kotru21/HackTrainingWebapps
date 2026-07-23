@@ -101,22 +101,27 @@ export async function computeScores(pool: Pool, cfg: ScoreboardConfig): Promise<
     const slaPct = total > 0 ? up / total : 1;
     const slaDefense = Math.round(slaPct * cfg.defense_weight);
 
-    // Defended flags: flags planted on this team's own stand that expired without the
-    // opponent capturing them — i.e. the team kept the vuln closed. Worth the same
-    // flag_value the attacker would have earned, mirroring attack scoring. Only credited
-    // to the round's defender: the attacker's stand is unreachable to the opponent by
-    // NetworkPolicy, so its flags always expire uncaptured and must not score for free.
+    // Defended vulns: a fixed flag_value bonus for each vuln the team is CURRENTLY keeping
+    // closed — judged by the latest expired flag for that vuln on their own stand being
+    // uncaptured. Counted once per vuln_id (not per tick), so defense is bounded by the
+    // sum of flag_values and does not balloon over a long round. Only the round's defender
+    // is credited: the attacker's stand is unreachable to the opponent by NetworkPolicy,
+    // so its flags always expire uncaptured and must not score for free.
     let defended = 0;
     if (round && team === round.defender_team) {
       const defRes = await pool.query<{ vuln_id: string }>(
-        `SELECT pf.vuln_id
-           FROM planted_flags pf
-          WHERE pf.team = $1
-            AND pf.expires_at < NOW()
-            AND ($2::timestamptz IS NULL OR pf.planted_at >= $2)
-            AND NOT EXISTS (
-              SELECT 1 FROM submissions s WHERE s.flag = pf.flag AND s.status = 'accepted'
-            )`,
+        `WITH latest AS (
+           SELECT DISTINCT ON (vuln_id) vuln_id, flag
+             FROM planted_flags
+            WHERE team = $1
+              AND expires_at < NOW()
+              AND ($2::timestamptz IS NULL OR planted_at >= $2)
+            ORDER BY vuln_id, planted_at DESC
+         )
+         SELECT vuln_id FROM latest
+          WHERE NOT EXISTS (
+            SELECT 1 FROM submissions s WHERE s.flag = latest.flag AND s.status = 'accepted'
+          )`,
         [team, round.started_at ?? null],
       );
       for (const r of defRes.rows) defended += cfg.flag_values[r.vuln_id] ?? 0;
