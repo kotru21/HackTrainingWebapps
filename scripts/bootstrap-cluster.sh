@@ -30,7 +30,9 @@ echo "==> HackTraining bootstrap (app=$APP storageClass=$STORAGE_CLASS)"
 # re-runs (or a second --app round) keep the SAME creds instead of rotating mid-game.
 # Set GEN_CREDS=0 to keep the manifest defaults (e.g. quick throwaway bring-up).
 GEN_CREDS="${GEN_CREDS:-1}"
+GEN_TLS="${GEN_TLS:-1}"
 CREDS_FILE="${CREDS_FILE:-$ROOT/artifacts/credentials.env}"
+TLS_DIR="${TLS_DIR:-$ROOT/artifacts/tls}"
 if [[ "$GEN_CREDS" == "1" ]]; then
   if [[ -f "$CREDS_FILE" ]]; then
     # shellcheck disable=SC1090
@@ -92,6 +94,33 @@ if [[ -z "$(kubectl -n ingress-nginx get endpoints ingress-nginx-controller-admi
             -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)" ]]; then
   echo "ERROR: ingress-nginx admission webhook has no endpoints after 120s" >&2
   exit 1
+fi
+
+# --- TLS: one self-signed wildcard cert for *.hack.local, served as the ingress-nginx
+# default certificate so every host (scoreboard/grafana/app/IDE) gets HTTPS with no
+# per-Ingress tls block. Fixes code-server's "insecure context" warning. Cert is
+# generated once and reused (artifacts/tls). Set GEN_TLS=0 to stay HTTP-only.
+if [[ "$GEN_TLS" == "1" ]]; then
+  if [[ ! -f "$TLS_DIR/tls.crt" || ! -f "$TLS_DIR/tls.key" ]]; then
+    echo "==> Generating self-signed *.hack.local certificate"
+    mkdir -p "$TLS_DIR"
+    openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+      -keyout "$TLS_DIR/tls.key" -out "$TLS_DIR/tls.crt" \
+      -subj "/O=HackTraining/CN=hack.local" \
+      -addext "subjectAltName=DNS:hack.local,DNS:*.hack.local" >/dev/null 2>&1
+    chmod 600 "$TLS_DIR/tls.key"
+  fi
+  echo "==> Installing TLS cert as ingress-nginx default certificate"
+  kubectl -n ingress-nginx create secret tls hack-local-tls \
+    --cert="$TLS_DIR/tls.crt" --key="$TLS_DIR/tls.key" \
+    --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  # Point the controller at it (idempotent — only add the arg once).
+  if ! kubectl -n ingress-nginx get deploy ingress-nginx-controller \
+        -o jsonpath='{.spec.template.spec.containers[0].args}' 2>/dev/null \
+        | grep -q 'default-ssl-certificate'; then
+    kubectl -n ingress-nginx patch deploy ingress-nginx-controller --type=json \
+      -p '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--default-ssl-certificate=ingress-nginx/hack-local-tls"}]' 2>/dev/null || true
+  fi
 fi
 
 echo "==> Apply base namespaces / PSA"
@@ -190,6 +219,11 @@ echo "==> Bootstrap complete"
 echo "Hosts (add to /etc/hosts → ingress IP):"
 echo "  scoreboard.hack.local grafana.hack.local team-a.app.hack.local team-b.app.hack.local"
 echo "Verify NetworkPolicy: scripts/verify-networkpolicy.sh"
+
+if [[ "$GEN_TLS" == "1" ]]; then
+  echo "TLS: HTTPS enabled on all hosts via self-signed *.hack.local cert"
+  echo "     (browsers warn — accept once, or import $TLS_DIR/tls.crt as a trusted CA)."
+fi
 
 if [[ "$GEN_CREDS" == "1" ]]; then
   cat <<EOF
