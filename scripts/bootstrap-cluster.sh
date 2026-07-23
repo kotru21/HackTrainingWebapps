@@ -37,7 +37,14 @@ if [[ "$GEN_CREDS" == "1" ]]; then
     source "$CREDS_FILE"
     echo "==> Reusing credentials from $CREDS_FILE"
   else
-    gen() { tr -dc 'a-hj-km-np-z2-9' </dev/urandom | head -c "${1:-8}"; }  # no look-alikes (0/o/1/l/i)
+    # Short random token, no look-alike chars (0/o/1/l/i). Captured via a subshell with
+    # `|| true` so the SIGPIPE head sends to tr (reading the endless /dev/urandom) does
+    # not trip `set -o pipefail` and abort the whole bootstrap.
+    gen() {
+      local s
+      s="$(LC_ALL=C tr -dc 'a-hj-km-np-z2-9' </dev/urandom 2>/dev/null | head -c "${1:-8}")" || true
+      printf '%s' "$s"
+    }
     TEAM_A_TOKEN="$(gen 8)"; TEAM_B_TOKEN="$(gen 8)"; JUDGE_TOKEN="$(gen 10)"
     IDE_A_PASS="$(gen 8)"; IDE_B_PASS="$(gen 8)"; GRAFANA_PASS="$(gen 8)"
     mkdir -p "$(dirname "$CREDS_FILE")"
