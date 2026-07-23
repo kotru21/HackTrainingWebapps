@@ -12,9 +12,15 @@ data:
     clients:
       - url: http://loki.platform.svc.cluster.local:3100/loki/api/v1/push
     scrape_configs:
-      - job_name: kubernetes-pods
-        kubernetes_sd_configs:
-          - role: pod
+      # Tail pod logs straight off disk. The kubernetes_sd approach produced 0 targets on
+      # this k3s node despite correct RBAC and the log files existing at the expected path,
+      # so read the files directly (no API/discovery dependency). namespace/pod/container
+      # come from the file path; service/team/event/level come from the pino JSON body.
+      - job_name: pod-logs
+        static_configs:
+          - targets: [localhost]
+            labels:
+              __path__: /var/log/pods/*/*/*.log
         pipeline_stages:
           - cri: {}
           - json:
@@ -28,24 +34,13 @@ data:
               service:
               team:
               level:
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_namespace]
-            target_label: namespace
-          - source_labels: [__meta_kubernetes_pod_label_team]
-            target_label: team
-          - source_labels: [__meta_kubernetes_pod_label_service]
-            target_label: service
-          - source_labels: [__meta_kubernetes_pod_name]
-            target_label: pod
-          - source_labels: [__meta_kubernetes_pod_container_name]
-            target_label: container
-          - action: replace
-            replacement: /var/log/pods/*$1/*.log
-            separator: /
-            source_labels:
-              - __meta_kubernetes_pod_uid
-              - __meta_kubernetes_pod_container_name
-            target_label: __path__
+          - regex:
+              source: filename
+              expression: '^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/'
+          - labels:
+              namespace:
+              pod:
+              container:
 ---
 apiVersion: v1
 kind: ServiceAccount
