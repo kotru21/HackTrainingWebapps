@@ -25,15 +25,14 @@ data:
           - cri: {}
           - json:
               expressions:
-                event: event
                 service: service
                 team: team
-                level: level
+          # Only service/team become stream labels (used by {service=...} selectors).
+          # event/level stay in the JSON body — dashboards parse them with `| json | event=~`,
+          # and promoting event to a label collides with that parse and breaks the filter.
           - labels:
-              event:
               service:
               team:
-              level:
           - regex:
               source: filename
               expression: '^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/'
