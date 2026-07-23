@@ -11,6 +11,9 @@ COPY apps/app1-helpdesk/tsconfig.json /app/tsconfig.json
 COPY apps/app1-helpdesk/src /app/src
 COPY apps/app1-helpdesk/views /app/views
 COPY apps/app1-helpdesk/public /app/public
+# Blue-editable stand config: seeded into the workspace PVC and loaded (override) at
+# startup, so config fixes are made by editing /workspace/.env in code-server.
+COPY apps/app1-helpdesk/vulnerable/stand.env /app/.env
 
 # Overlay: pin vulnerable ejs@3.1.6 (CVE-2022-29078)
 COPY apps/app1-helpdesk/vulnerable/package.json /tmp/overlay.json
