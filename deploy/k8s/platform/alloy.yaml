@@ -115,8 +115,15 @@ spec:
             - name: pods
               mountPath: /var/log/pods
               readOnly: true
+            # Mount the emptyDir at the parent dir, not at .../data. The container runs
+            # as root but drops ALL capabilities (incl. CAP_DAC_OVERRIDE), so UID 0 is
+            # subject to normal DAC. The image's /var/lib/alloy is owned by the alloy
+            # user (473, mode 0755), so a capless root can't create data/ under it and
+            # Alloy exits: "mkdir /var/lib/alloy/data: permission denied". A fresh
+            # emptyDir at /var/lib/alloy is root-owned, so root writes it by owner right
+            # and --storage.path=/var/lib/alloy/data is created inside.
             - name: data
-              mountPath: /var/lib/alloy/data
+              mountPath: /var/lib/alloy
           readinessProbe:
             httpGet:
               path: /-/ready
